@@ -1,0 +1,2 @@
+GOPATH=`pwd` go get "golang.org/x/sys/unix"
+GOPATH=`pwd` go build dump-and-fallocate.go
