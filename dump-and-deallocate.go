@@ -129,7 +129,7 @@ func init() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
 		            "Usage: %s [options] file\n" +
-		            " Dump 'file' on stdout and deallocate it in the same time.\n" +
+		            " Dump 'file' on stdout and deallocate it at the same time.\n" +
 		            " More precisely:\n" +
 		            "   1. read 'buffer-size' bytes from 'file'\n" +
 		            "   2. write thoses bytes on stdout\n" +
