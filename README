@@ -1,8 +1,8 @@
-# dump-and-deallocate
+# dump-deallocate
 
 ## help
 
-Usage: ./dump-and-deallocate [options] file
+Usage: ./dump-deallocate [options] file
 
 Dump 'file' on stdout and deallocate it in the same time.
 More precisely:
@@ -33,4 +33,4 @@ Options:
 ## build
 
 	GOPATH=`pwd` go get "golang.org/x/sys/unix"
-	GOPATH=`pwd` go build dump-and-deallocate.go
+	GOPATH=`pwd` go build dump-deallocate.go
