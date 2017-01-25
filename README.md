@@ -1,10 +1,10 @@
 # dump-deallocate
 
-## help
+## Usage
 
-Usage: ./dump-deallocate [options] file
+	dump-deallocate [options] file
 
-Dump 'file' on stdout and deallocate it in the same time.
+Dump 'file' on stdout and deallocate it at the same time.
 More precisely:
 
 1. read 'buffer-size' bytes from 'file'
@@ -30,7 +30,7 @@ Options:
 : Remove the file at the end of the whole dump.
 	It is not recommended since another process might be using the file.
 
-## build
+## Build
 
 	GOPATH=`pwd` go get "golang.org/x/sys/unix"
 	GOPATH=`pwd` go build dump-deallocate.go
