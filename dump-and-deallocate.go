@@ -13,7 +13,7 @@ import (
 )
 
 var err error
-var src_total_byte_deleted, dst_total_byte_written int64
+var src_total_byte_deallocated, dst_total_byte_written int64
 
 /*
  * begin flags handling
@@ -128,30 +128,35 @@ func init() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
-		"Usage: %s [options] file\n" +
-		" 'file' will be dumped on stdout and fallocated (punch-hole) during the process.\n\n" +
+		            "Usage: %s [options] file\n" +
+		            " Dump 'file' on stdout and deallocate it in the same time.\n" +
+		            " More precisely:\n" +
+		            "   1. read 'buffer-size' bytes from 'file'\n" +
+		            "   2. write thoses bytes on stdout\n" +
+		            "   3. deallocate 'buffer-size' bytes from 'file' (fallocate punch-hole)\n" +
+		            "      and go back to 1.\n\n" +
 
-		"Options:\n" +
-		" -b, --buffer-size int\n" +
-		"        memory buffer size in byte (default %d)\n\n" +
+		            "Options:\n" +
+		            " -b, --buffer-size int\n" +
+		            "        memory buffer size in byte (default %dKiB)\n\n" +
 
-		" -c, --collapse-range\n" +
-		"        At the end of the whole dump, remove/collapse (with fallocate collapse-range)\n" +
-		"        the greatest number of filesystem blocks already dumped.\n" +
-		"        On normal condition, at the end, 'file' will size one filesystem block.\n\n" +
+		            " -c, --collapse-range\n" +
+		            "        At the end of the whole dump, remove/collapse (with fallocate collapse-range)\n" +
+		            "        the greatest number of filesystem blocks already dumped.\n" +
+		            "        On normal condition, at the end, 'file' will size one filesystem block.\n\n" +
 
-		"        Supported on ext4 from Linux 3.15.\n\n" +
+		            "        Supported on ext4 from Linux 3.15.\n\n" +
 
-		" -t, --truncate\n" +
-		"        Truncate the file (to size 0) at the end of the whole dump\n" +
-		"        It is not recommended since another process can write in the file between\n" +
-		"        the last read and the truncate call.\n" +
-		"        On normal condition, at the end, 'file' will size 0.\n\n" +
+		            " -t, --truncate\n" +
+		            "        Truncate the file (to size 0) at the end of the whole dump\n" +
+		            "        It is not recommended since another process can write in the file between\n" +
+		            "        the last read and the truncate call.\n" +
+		            "        On normal condition, at the end, 'file' will size 0.\n\n" +
 
-		" -r, --remove\n" +
-		"        Remove the file at the end of the whole dump\n" +
-		"        It is not recommended since another process might be using the file.\n",
-		os.Args[0], int64(buffer_size))
+		            " -r, --remove\n" +
+		            "        Remove the file at the end of the whole dump\n" +
+		            "        It is not recommended since another process might be using the file.\n",
+		            os.Args[0], int64(buffer_size) / 1024)
 	}
 }
 /*
@@ -163,10 +168,9 @@ func ExitIfError(exit_str string, err error) {
 		return
 	}
 
-	// in case of non recoverable error, print some informations
-	// to the user
-	log.Print("src_total_byte_deleted: ", src_total_byte_deleted)
-	log.Print("dst_total_byte_written: ", dst_total_byte_written)
+	// in case of non recoverable error, print some informations to the user
+	log.Print("src_total_byte_deallocated: ", src_total_byte_deallocated)
+	log.Print("dst_total_byte_written: ",     dst_total_byte_written)
 	log.Fatal(exit_str, err)
 }
 
@@ -204,9 +208,9 @@ func main() {
 
 			// erase (deallocate space) the read bytes from src_file
 			err = unix.Fallocate(int(src_file.Fd()),
-			0x02 /*FALLOC_FL_PUNCH_HOLE*/ | 0x01 /*FALLOC_FL_KEEP_SIZE*/,
-			src_total_byte_deleted,
-			int64(nb_byte_read))
+			                     0x02 /*FALLOC_FL_PUNCH_HOLE*/ | 0x01 /*FALLOC_FL_KEEP_SIZE*/,
+			                     src_total_byte_deallocated,
+			                     int64(nb_byte_read))
 			ExitIfError("unix.Fallocate punch-hole: ", err)
 
 			/* notes on Fallocate:
@@ -226,7 +230,7 @@ func main() {
 			*  the x bytes removed by fallocate are added back by the kernel (as zeros, sparse).
 			*/
 
-			src_total_byte_deleted += int64(nb_byte_read)
+			src_total_byte_deallocated += int64(nb_byte_read)
 		}
 
 		if read_error == io.EOF {
@@ -234,10 +238,12 @@ func main() {
 			// we stop here
 			break
 		}
+
 		ExitIfError("src_file.Read: ", read_error)
 	}
 
 	if collapse_range {
+
 		// for collapse_range, offset and len have to
 		// be multiple of the filesystem block size
 		// so we get filesystem informations (including block size)
@@ -246,24 +252,29 @@ func main() {
 		ExitIfError("unix.Fstatfs: ", err)
 
 		// we can't collapse the whole file, so we make sure to keep at
-		// leaste one byte
-		var fallocate_len int64 = src_total_byte_deleted - 1
-		// we make sure fallocate_len is a multiple of the filesystem block size
-		fallocate_len -= fallocate_len % src_filesystem_info.Bsize
-		if fallocate_len < 0 {
+		// least one byte
+		var collapse_len int64 = src_total_byte_deallocated - 1
+		// we make sure collapse_len is a multiple of the filesystem block size
+		collapse_len -= collapse_len % src_filesystem_info.Bsize
+		if collapse_len < 0 {
+			// the file already size one filesystem block
 			return
 		}
 		// erase (collapse) the greatest number of filesystem blocks already dumped/read
 		err = unix.Fallocate(int(src_file.Fd()),
-		0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
-		0,
-		fallocate_len)
+		                     0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
+		                     0,
+		                     collapse_len)
 		ExitIfError("unix.Fallocate collapse: ", err)
+
 	} else if truncate {
+
 		// erase (collapse) the read bytes from src_file
 		err = unix.Ftruncate(int(src_file.Fd()), 0)
 		ExitIfError("unix.Ftruncate: ", err)
+
 	} else if remove {
+
 		// before removing it, we close src_file
 		err = src_file.Close()
 		// src_file.Close() will be call by defer
