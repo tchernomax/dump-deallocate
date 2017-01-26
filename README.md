@@ -33,4 +33,4 @@ Options:
 ## Build
 
 	GOPATH=`pwd` go get "golang.org/x/sys/unix"
-	GOPATH=`pwd` go build dump-deallocate.go
+	GOPATH=`pwd` go build -o dump-deallocate main.go
