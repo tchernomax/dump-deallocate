@@ -1,4 +1,4 @@
-/*
+/**
  * dump-deallocate
  *
  * Copyright (C) 2017 Maxime de Roucy
@@ -35,7 +35,7 @@ import (
 var err error
 var src_total_byte_deallocated, dst_total_byte_written int64
 
-/*
+/**
  * begin flags handling
  */
 var collapse_range, truncate, remove bool
@@ -82,7 +82,7 @@ func (size_obj *size_type) Set(size_str string) error {
 	// G → power = 3
 	// …
 	power := 0
-	size_suffix_power := [6]string{"K", "M", "G", "T", "P", "Z"}
+	size_suffix_power := [6]string{"K", "M", "G", "T", "P", "E"}
 	for power_index,power_suffix := range size_suffix_power {
 		if strings.HasSuffix(size_str_modified, power_suffix) {
 			power = power_index + 1
