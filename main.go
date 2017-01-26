@@ -148,34 +148,45 @@ func init() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
-		            "Usage: %s [options] file\n" +
-		            " Dump 'file' on stdout and deallocate it at the same time.\n" +
+		            "Usage: %s [-b BYTES] [-c|-t|-r] FILE\n" +
+		            " Dump FILE on stdout and deallocate it at the same time.\n" +
 		            " More precisely:\n" +
-		            "   1. read 'buffer-size' bytes from 'file'\n" +
+		            "   1. read BYTES bytes from FILE\n" +
 		            "   2. write thoses bytes on stdout\n" +
-		            "   3. deallocate 'buffer-size' bytes from 'file' (fallocate punch-hole)\n" +
+		            "   3. deallocate BYTES bytes from FILE (fallocate punch-hole)\n" +
 		            "      and go back to 1.\n\n" +
 
 		            "Options:\n" +
-		            " -b, --buffer-size int\n" +
-		            "        memory buffer size in byte (default %dKiB)\n\n" +
+		            " -b, --buffer-size BYTES\n" +
+		            "        Memory buffer size in byte (default %dKiB).\n" +
+			    "        BYTES  may  be followed by the following multiplicative suffixes:\n" +
+			    "         - IEC unit:\n" +
+			    "           - KiB = 1024\n" +
+			    "           - MiB = 1024×1024\n" +
+			    "           …\n" +
+			    "           - EiB = 1024⁶\n" +
+			    "         - SI unit:\n" +
+			    "           - KB = 1000\n" +
+			    "           - MB = 1000×1000\n" +
+			    "           …\n" +
+			    "           - EB = 1000⁶\n\n" +
 
 		            " -c, --collapse-range\n" +
 		            "        At the end of the whole dump, remove/collapse (with fallocate collapse-range)\n" +
 		            "        the greatest number of filesystem blocks already dumped.\n" +
-		            "        On normal condition, at the end, 'file' will size one filesystem block.\n\n" +
+		            "        On normal condition, at the end, FILE will size one filesystem block.\n\n" +
 
 		            "        Supported on ext4 from Linux 3.15.\n\n" +
 
 		            " -t, --truncate\n" +
-		            "        Truncate the file (to size 0) at the end of the whole dump\n" +
-		            "        It is not recommended since another process can write in the file between\n" +
+		            "        Truncate FILE (to size 0) at the end of the whole dump\n" +
+		            "        It is not recommended since another process can write in FILE between\n" +
 		            "        the last read and the truncate call.\n" +
-		            "        On normal condition, at the end, 'file' will size 0.\n\n" +
+		            "        On normal condition, at the end, FILE will size 0.\n\n" +
 
 		            " -r, --remove\n" +
-		            "        Remove the file at the end of the whole dump\n" +
-		            "        It is not recommended since another process might be using the file.\n",
+		            "        Remove FILE at the end of the whole dump\n" +
+		            "        It is not recommended since another process might be using FILE.\n",
 		            os.Args[0], int64(buffer_size) / 1024)
 	}
 }
