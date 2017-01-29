@@ -28,7 +28,7 @@ Options:
 		…
 		* EB = 1000⁶
 
--c, --collapse-range
+-c, --collapse
 : At the end of the whole dump, remove/collapse (with fallocate collapse-range) the greatest number of filesystem blocks already dumped.
 	On normal condition, at the end, FILE will size one filesystem block.  
 	Supported on ext4 from Linux 3.15.
@@ -46,6 +46,6 @@ Options:
 
 	go get "golang.org/x/sys/unix"
 	go test
-	go build -o dump-deallocate main.go
+	go build -o dump-deallocate main.go flag_handling.go dump-deallocate.go
 
 You may have to define GOPATH.
