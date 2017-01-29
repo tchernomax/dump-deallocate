@@ -29,6 +29,7 @@ import (
 	"math/rand"
 )
 
+// TODO document
 func BoolToInt(boolean bool) int {
 	if boolean {
 		return 1
@@ -36,6 +37,7 @@ func BoolToInt(boolean bool) int {
 	return 0
 }
 
+// TODO document
 func GetFilesystemBlockSize(file *os.File) int64 {
 
 	var filesystem_info unix.Statfs_t
@@ -48,6 +50,7 @@ func GetFilesystemBlockSize(file *os.File) int64 {
 	return filesystem_info.Bsize
 }
 
+// TODO document
 func DumpDeallocate(file *os.File) (file_total_byte_deallocated int64, stdout_total_byte_written int64) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -121,9 +124,10 @@ func DumpDeallocate(file *os.File) (file_total_byte_deallocated int64, stdout_to
 	return file_total_byte_deallocated, stdout_total_byte_written
 }
 
+// TODO document
 func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_deallocated int64) {
 
-	// for collapse_range, offset and len have to
+	// for COLLAPSE_RANGE, offset and len have to
 	// be multiple of the filesystem block size
 	// so we get filesystem informations (including block size)
 	fs_block_size := GetFilesystemBlockSize(file)

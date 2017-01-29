@@ -1,7 +1,7 @@
 package main
 import "testing"
 
-func TestSet(t *testing.T){
+func TestBufferSizeParsing(t *testing.T){
 	buffer_size := new(size_type)
 	err := buffer_size.Set("10")
 	if int64(*buffer_size) != 10 || err != nil {

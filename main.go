@@ -43,6 +43,7 @@ func main() {
 
 	flag.Parse()
 
+	// check if flags are correct
 	PostParsingCheckFlags()
 
 	if collapse_test { // --collapse-test
@@ -63,23 +64,24 @@ func main() {
 	}
 	defer file.Close()
 
+	// main function
 	print_if_panic = fmt.Sprint(flag.Arg(0), " may have been modified")
 	file_total_byte_deallocated, _ := DumpDeallocate(file)
 
-	if collapse {
+	if collapse { // --collapse
 
 		print_if_panic = fmt.Sprint(flag.Arg(0), " dumped but collapse fail")
 
 		CollapseFileStart(file, file_total_byte_deallocated)
 
-	} else if truncate {
+	} else if truncate { // --truncate
 
 		print_if_panic = fmt.Sprint(flag.Arg(0), " dumped but truncate fail")
 
 		// erase (collapse) the read bytes from file
 		err = unix.Ftruncate(int(file.Fd()), 0)
 
-	} else if remove {
+	} else if remove { // --remove
 
 		// before removing it, we close file
 		err = file.Close()
