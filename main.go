@@ -194,6 +194,13 @@ func init() {
  * flags handling end
  */
 
+func BoolToInt(boolean bool) int {
+	if boolean {
+		return 1
+	}
+	return 0
+}
+
 func ExitIfError(exit_str string, err error) {
 	if err == nil {
 		return
@@ -210,6 +217,10 @@ func main() {
 
 	if flag.NArg() != 1 {
 		log.Fatal("Missing argument")
+	}
+
+	if BoolToInt(collapse_range) + BoolToInt(truncate) + BoolToInt(remove) > 1 {
+		log.Fatal("-c, -t and -r are mutually exclusive")
 	}
 
 	// open source file
