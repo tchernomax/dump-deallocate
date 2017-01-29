@@ -30,7 +30,7 @@ import (
 	"strings"
 )
 
-var collapse, truncate, remove bool
+var collapse, collapse_test, truncate, remove bool
 
 type size_type int64
 var buffer_size size_type = 32*1024 /* 32KiB */
@@ -128,6 +128,11 @@ func init() {
 	flag.BoolVar(&collapse, "collapse", collapse_default, "")
 	flag.BoolVar(&collapse, "c",              collapse_default, "")
 
+	// collapse_test
+	collapse_test_default := false
+	flag.BoolVar(&collapse_test, "collapse-test", collapse_test_default, "")
+	flag.BoolVar(&collapse_test, "C",             collapse_test_default, "")
+
 	// truncate
 	truncate_default := false
 	flag.BoolVar(&truncate, "truncate", truncate_default, "")
@@ -170,6 +175,12 @@ func init() {
 
 		            "        Supported on ext4 from Linux 3.15.\n\n" +
 
+		            " -C, --collapse-test\n" +
+		            "        Test the collapse functionnality.\n" +
+		            "        Create a file named dump-deallocate-collapse-range-test-<random int>\n" +
+			    "        and try to collapse it\n" +
+			    "        Remove file after the test.\n\n" +
+
 		            " -t, --truncate\n" +
 		            "        Truncate FILE (to size 0) at the end of the whole dump\n" +
 		            "        It is not recommended since another process can write in FILE between\n" +
@@ -185,11 +196,15 @@ func init() {
 
 func PostParsingCheckFlags() {
 
-	if flag.NArg() != 1 {
+	if flag.NArg() != 1 && ! collapse_test {
 		log.Panic("PostParsingCheckFlags: missing argument")
 	}
 
-	if BoolToInt(collapse) + BoolToInt(truncate) + BoolToInt(remove) > 1 {
-		log.Panic("PostParsingCheckFlags: -c, -t and -r are mutually exclusive")
+	if flag.NArg() != 0 && ! collapse_test {
+		log.Panic("PostParsingCheckFlags: -C doesn't accept other argument")
+	}
+
+	if BoolToInt(collapse) + BoolToInt(collapse_test) + BoolToInt(truncate) + BoolToInt(remove) > 1 {
+		log.Panic("PostParsingCheckFlags: -c, -C, -t and -r are mutually exclusive")
 	}
 }

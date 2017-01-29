@@ -28,10 +28,10 @@ import (
 	"os"
 )
 
-// flag handling is done in flag_handling.go
-
 func main() {
-	print_if_panic := ""
+	var err error
+	var print_if_panic string
+	var file *os.File
 	defer func() {
 		if r := recover(); r != nil {
 			if len(print_if_panic) != 0 {
@@ -45,8 +45,18 @@ func main() {
 
 	PostParsingCheckFlags()
 
+	if collapse_test { // --collapse-test
+		err = TestCollapse()
+		if err != nil {
+			fmt.Println("Collapse test : KO")
+			os.Exit(1)
+		}
+		fmt.Println("Collapse test : OK")
+		return
+	}
+
 	// open source file
-	file, err := os.OpenFile(flag.Arg(0), os.O_RDWR, 0644)
+	file, err = os.OpenFile(flag.Arg(0), os.O_RDWR, 0644)
 	if err != nil {
 		log.Print(flag.Arg(0), " untouched")
 		log.Fatal("main, os.OpenFile err=\"", err, "\"")

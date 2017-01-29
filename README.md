@@ -33,6 +33,11 @@ Options:
 	On normal condition, at the end, FILE will size one filesystem block.  
 	Supported on ext4 from Linux 3.15.
 
+-C, --collapse-test
+: Test the collapse functionnality.
+	Create a file named dump-deallocate-collapse-range-test-<random int> and try to collapse it.
+	Remove file after the test.
+
 -t, --truncate
 : Truncate FILE (to size 0) at the end of the whole dump.
 	It is not recommended since another process can write in FILE between the last read and the truncate call.

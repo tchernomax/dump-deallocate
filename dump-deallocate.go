@@ -21,10 +21,12 @@
 package main
 
 import (
+	"fmt"
 	"golang.org/x/sys/unix"
 	"io"
 	"log"
 	"os"
+	"math/rand"
 )
 
 func BoolToInt(boolean bool) int {
@@ -147,4 +149,38 @@ func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_d
 	}
 
 	return collapse_len
+}
+
+// TODO document
+func TestCollapse() (err error) {
+
+	// create the test file
+	file_name := fmt.Sprint("dump-deallocate-collapse-range-test-", rand.Int())
+	file, err := os.OpenFile(file_name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	if os.IsExist(err) {
+		log.Panic("TestCollapse, ", file_name, " already exist ; try relaunch")
+	}
+	if err != nil {
+		log.Panic("TestCollapse, os.OpenFile err=\"", err, "\"")
+	}
+	defer os.Remove(file_name)
+	defer file.Close()
+
+	// resize it to : 2 filesystem block size (as COLLAPSE_RANGE
+	// len have to be multiple of the filesystem block size)
+	fs_block_size := GetFilesystemBlockSize(file)
+	err = unix.Fallocate(int(file.Fd()),
+	                     0 /* Default: allocate disk space*/,
+	                     0,
+	                     2 * fs_block_size)
+
+	if err != nil {
+		log.Panic("TestCollapse, unix.Fallocate err=\"", err, "\"")
+	}
+
+	// try to collapse it's first filesystem block
+	return unix.Fallocate(int(file.Fd()),
+	                     0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
+	                     0,
+	                     fs_block_size)
 }
