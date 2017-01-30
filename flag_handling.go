@@ -30,6 +30,9 @@ import (
 	"strings"
 )
 
+var error_negative_or_zero = errors.New("negative or zero value")
+var error_int64_overflow   = errors.New("value too big to fit in int64")
+
 var collapse, collapse_test, truncate, remove bool
 
 type size_type int64
@@ -48,10 +51,12 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 		// ParseInt raise an error
 		size_int, err = strconv.ParseInt(size_str, 10, 64)
 		if err != nil {
-			return err
+			// I return err…Err instead of err
+			// because it make test easier
+			return err.(*strconv.NumError).Err
 		}
 		if size_int <= 0 {
-			return errors.New("negative value")
+			return error_negative_or_zero
 		}
 		// assign size_int to size_obj (buffer_size value)
 		*size_obj = size_type(size_int)
@@ -88,10 +93,12 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	// ParseInt raise an error
 	size_int, err = strconv.ParseInt(size_str_modified, 10, 64)
 	if err != nil {
-		return err
+		// I return err…Err instead of err
+		// because it make test easier
+		return err.(*strconv.NumError).Err
 	}
 	if size_int <= 0 {
-		return errors.New("negative value")
+		return error_negative_or_zero
 	}
 
 	multiplicator := int64(1)
@@ -110,7 +117,7 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	size_int_before_multiply := size_int
 	size_int = size_int_before_multiply * multiplicator
 	if size_int / multiplicator != size_int_before_multiply {
-		return errors.New("value too big to fit in int64")
+		return error_int64_overflow
 	}
 
 	// assign size_int to size_obj (buffer_size value)

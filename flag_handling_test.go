@@ -1,46 +1,48 @@
 package main
-import "testing"
+import (
+	"testing"
+	"strconv"
+)
 
-func TestBufferSizeParsing(t *testing.T){
+func TestBufferSizeParsing(t *testing.T) {
 	buffer_size := new(size_type)
-	err := buffer_size.Set("10")
-	if int64(*buffer_size) != 10 || err != nil {
-		t.Fatal("expected: 10 ; got: ", *buffer_size)
+
+	test_cases := []struct {
+		input_v     string
+		expected_v  int64
+		expected_e  error
+	}{
+		{"10",      10,      nil},
+		{"10KiB",   10*1024, nil},
+		{"10KB",    10*1000, nil},
+		{"-1",      0, error_negative_or_zero},
+		{"-10KB",   0, error_negative_or_zero},
+		{"0",       0, error_negative_or_zero},
+		{"1024EiB", 0, error_int64_overflow},
+		{"KB",      0, strconv.ErrSyntax},
+		{"test",    0, strconv.ErrSyntax},
+		{"10000000000000000000000", 0, strconv.ErrRange},
 	}
 
-	err = buffer_size.Set("10KiB")
-	if int64(*buffer_size) != 10*1024 || err != nil {
-		t.Fatal("expected: ", 10*1024, " ; got: ", *buffer_size)
-	}
+	for _, tc := range test_cases {
+		t.Run(tc.input_v, func(t *testing.T) {
 
-	err = buffer_size.Set("10KB")
-	if int64(*buffer_size) != 10*1000 || err != nil {
-		t.Fatal("expected: ", 10*1000, " ; got: ", *buffer_size)
-	}
+			err := buffer_size.Set(tc.input_v)
 
-	// errors
-	err = buffer_size.Set("-1")
-	if err == nil {
-		t.Fatal("expected: error", " ; got: ", *buffer_size)
-	}
+			// check error
+			if err != tc.expected_e {
+				t.Errorf("got error '%v'; expected error '%v'", err, tc.expected_e)
+			}
 
-	err = buffer_size.Set("0")
-	if err == nil {
-		t.Fatal("expected: error", " ; got: ", *buffer_size)
-	}
+			if err != nil {
+				// if we expected an error we don't check the value
+				return
+			}
 
-	err = buffer_size.Set("KB")
-	if err == nil {
-		t.Fatal("expected: error", " ; got: ", *buffer_size)
-	}
-
-	err = buffer_size.Set("-10KB")
-	if err == nil {
-		t.Fatal("expected: error", " ; got: ", *buffer_size)
-	}
-
-	err = buffer_size.Set("1024EiB")
-	if err == nil {
-		t.Fatal("expected: error", " ; got: ", *buffer_size)
+			// check value
+			if int64(*buffer_size) != tc.expected_v {
+				t.Errorf("got '%d'; expected '%v'", buffer_size, tc.expected_v)
+			}
+		})
 	}
 }
