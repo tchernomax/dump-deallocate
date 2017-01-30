@@ -49,7 +49,7 @@ func main() {
 	if collapse_test { // --collapse-test
 		err = TestCollapse()
 		if err != nil {
-			fmt.Println("Collapse test : KO")
+			fmt.Println("Collapse test : FAIL")
 			os.Exit(1)
 		}
 		fmt.Println("Collapse test : OK")
