@@ -66,7 +66,7 @@ func main() {
 
 	// main function
 	print_if_panic = fmt.Sprint(flag.Arg(0), " may have been modified")
-	file_total_byte_deallocated, _ := DumpDeallocate(file)
+	file_total_byte_deallocated, _ := CopyWhileDeallocate(file, os.Stdout)
 
 	if collapse { // --collapse
 
@@ -76,10 +76,12 @@ func main() {
 
 	} else if truncate { // --truncate
 
-		print_if_panic = fmt.Sprint(flag.Arg(0), " dumped but truncate fail")
-
 		// erase (collapse) the read bytes from file
 		err = unix.Ftruncate(int(file.Fd()), 0)
+		if err != nil {
+			log.Print(flag.Arg(0), " dumped but truncate fail")
+			log.Fatal("main, unix.Ftruncate err=\"", err, "\"")
+		}
 
 	} else if remove { // --remove
 

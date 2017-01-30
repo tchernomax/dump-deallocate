@@ -21,12 +21,11 @@
 package main
 
 import (
-	"fmt"
 	"golang.org/x/sys/unix"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
-	"math/rand"
 )
 
 // TODO document
@@ -37,7 +36,9 @@ func BoolToInt(boolean bool) int {
 	return 0
 }
 
-// TODO document
+/**
+ * Can Panic.
+ */
 func GetFilesystemBlockSize(file *os.File) int64 {
 
 	var filesystem_info unix.Statfs_t
@@ -50,8 +51,10 @@ func GetFilesystemBlockSize(file *os.File) int64 {
 	return filesystem_info.Bsize
 }
 
-// TODO document
-func DumpDeallocate(file *os.File) (file_total_byte_deallocated int64, stdout_total_byte_written int64) {
+/**
+ * Can Panic.
+ */
+func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deallocated int64, stdout_total_byte_written int64) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Print("file_total_byte_deallocated: ", file_total_byte_deallocated)
@@ -70,15 +73,15 @@ func DumpDeallocate(file *os.File) (file_total_byte_deallocated int64, stdout_to
 		if nb_byte_read > 0 {
 
 			// write the bytes we just read on stdout
-			nb_byte_written, err := os.Stdout.Write(buffer[0:nb_byte_read])
+			nb_byte_written, err := output.Write(buffer[0:nb_byte_read])
 			stdout_total_byte_written += int64(nb_byte_written)
 
 			if err != nil {
-				log.Panic("DumpDeallocate, os.Stdout.Write err=\"", err, "\"")
+				log.Panic("CopyWhileDeallocate, os.Stdout.Write err=\"", err, "\"")
 			}
 			// fail to write as much byte as we read
 			if nb_byte_read != nb_byte_written {
-				log.Panic("DumpDeallocate, os.Stdout.Write: ", io.ErrShortWrite)
+				log.Panic("CopyWhileDeallocate, os.Stdout.Write: ", io.ErrShortWrite)
 			}
 
 			// deallocate the read bytes from file
@@ -87,7 +90,7 @@ func DumpDeallocate(file *os.File) (file_total_byte_deallocated int64, stdout_to
 			                     file_total_byte_deallocated,
 			                     int64(nb_byte_read))
 			if err != nil {
-				log.Panic("DumpDeallocate, unix.Fallocate punch-hole err=\"", err, "\"")
+				log.Panic("CopyWhileDeallocate, unix.Fallocate punch-hole err=\"", err, "\"")
 			}
 
 			/* notes on Fallocate:
@@ -117,14 +120,16 @@ func DumpDeallocate(file *os.File) (file_total_byte_deallocated int64, stdout_to
 		}
 
 		if read_error != nil {
-			log.Panic("DumpDeallocate, file.Read: ", read_error)
+			log.Panic("CopyWhileDeallocate, file.Read: ", read_error)
 		}
 	}
 
 	return file_total_byte_deallocated, stdout_total_byte_written
 }
 
-// TODO document
+/**
+ * Can Panic.
+ */
 func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_deallocated int64) {
 
 	// for COLLAPSE_RANGE, offset and len have to
@@ -155,19 +160,17 @@ func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_d
 	return collapse_len
 }
 
-// TODO document
+/**
+ * Can Panic.
+ */
 func TestCollapse() (err error) {
 
 	// create the test file
-	file_name := fmt.Sprint("dump-deallocate-collapse-range-test-", rand.Int())
-	file, err := os.OpenFile(file_name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
-	if os.IsExist(err) {
-		log.Panic("TestCollapse, ", file_name, " already exist ; try relaunch")
-	}
+	file, err := ioutil.TempFile(".", "dump-deallocate-collapse-test-")
 	if err != nil {
-		log.Panic("TestCollapse, os.OpenFile err=\"", err, "\"")
+		log.Panic("TestCollapse, ioutil.TempFile err=\"", err, "\"")
 	}
-	defer os.Remove(file_name)
+	defer os.Remove(file.Name())
 	defer file.Close()
 
 	// resize it to : 2 filesystem block size (as COLLAPSE_RANGE

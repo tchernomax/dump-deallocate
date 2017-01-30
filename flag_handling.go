@@ -184,8 +184,8 @@ func init() {
 
 		            " -C, --collapse-test\n" +
 		            "        Test the collapse functionnality.\n" +
-		            "        Create a file named dump-deallocate-collapse-range-test-<random int>\n" +
-			    "        and try to collapse it\n" +
+		            "        Create a file named dump-deallocate-collapse-test-<random str>\n" +
+			    "        in the working directory and try to collapse it\n" +
 			    "        Remove file after the test.\n\n" +
 
 		            " -t, --truncate\n" +
@@ -207,7 +207,7 @@ func PostParsingCheckFlags() {
 		log.Panic("PostParsingCheckFlags: missing argument")
 	}
 
-	if flag.NArg() != 0 && ! collapse_test {
+	if flag.NArg() != 0 && collapse_test {
 		log.Panic("PostParsingCheckFlags: -C doesn't accept other argument")
 	}
 

@@ -35,7 +35,7 @@ Options:
 
 -C, --collapse-test
 : Test the collapse functionnality.
-	Create a file named dump-deallocate-collapse-range-test-<random int> and try to collapse it.
+	Create a file named dump-deallocate-collapse-range-test-<random int> in the working directory and try to collapse it.
 	Remove file after the test.
 
 -t, --truncate
