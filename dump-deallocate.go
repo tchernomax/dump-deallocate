@@ -21,6 +21,7 @@
 package main
 
 import (
+	"errors"
 	"golang.org/x/sys/unix"
 	"io"
 	"io/ioutil"
@@ -36,19 +37,15 @@ func BoolToInt(boolean bool) int {
 	return 0
 }
 
-/**
- * Can Panic.
- */
-func GetFilesystemBlockSize(file *os.File) int64 {
+func GetFilesystemBlockSize(file *os.File) (int64, error) {
 
 	var filesystem_info unix.Statfs_t
 	err := unix.Fstatfs(int(file.Fd()), &filesystem_info)
-
 	if err != nil {
-		log.Panic("GetFilesystemBlockSize, unix.Fstatfs err=\"", err, "\"")
+		return 0, err
 	}
 
-	return filesystem_info.Bsize
+	return filesystem_info.Bsize, nil
 }
 
 /**
@@ -127,62 +124,59 @@ func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deall
 	return file_total_byte_deallocated, stdout_total_byte_written
 }
 
-/**
- * Can Panic.
- */
-func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_deallocated int64) {
+func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_deallocated int64, err error) {
 
 	// for COLLAPSE_RANGE, offset and len have to
 	// be multiple of the filesystem block size
 	// so we get filesystem informations (including block size)
-	fs_block_size := GetFilesystemBlockSize(file)
-
-	// we can't collapse the whole file, so we make sure to keep at
-	// least one byte
-	var collapse_len int64 = bytes_to_deallocate - 1
+	var fs_block_size int64
+	fs_block_size, err = GetFilesystemBlockSize(file)
+	if err != nil {
+		return 0, err
+	}
 
 	// we make sure collapse_len is a multiple of the filesystem block size
-	collapse_len -= collapse_len % fs_block_size
+	collapse_len := bytes_to_deallocate - ( bytes_to_deallocate % fs_block_size )
 	if collapse_len <= 0 {
 		// the file already size one filesystem block
-		return 0
+		return 0, error_file_size_on_fsb
 	}
 
 	// collapse (erase) the greatest number of filesystem blocks already dumped/read
-	err := unix.Fallocate(int(file.Fd()),
+	err = unix.Fallocate(int(file.Fd()),
 	                     0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
 	                     0,
 	                     collapse_len)
 	if err != nil {
-		log.Panic("CollapseFileStart, unix.Fallocate err=\"", err, "\"")
+		return 0, err
 	}
 
-	return collapse_len
+	return collapse_len, nil
 }
+var error_file_size_on_fsb = errors.New("file already size one filesystem block")
 
-/**
- * Can Panic.
- */
 func TestCollapse() (err error) {
 
 	// create the test file
 	file, err := ioutil.TempFile(".", "dump-deallocate-collapse-test-")
 	if err != nil {
-		log.Panic("TestCollapse, ioutil.TempFile err=\"", err, "\"")
+		return error_tempfile_fail
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
 
 	// resize it to : 2 filesystem block size (as COLLAPSE_RANGE
 	// len have to be multiple of the filesystem block size)
-	fs_block_size := GetFilesystemBlockSize(file)
+	var fs_block_size int64
+	fs_block_size, err = GetFilesystemBlockSize(file)
+	if err != nil { return err }
+
 	err = unix.Fallocate(int(file.Fd()),
 	                     0 /* Default: allocate disk space*/,
 	                     0,
 	                     2 * fs_block_size)
-
 	if err != nil {
-		log.Panic("TestCollapse, unix.Fallocate err=\"", err, "\"")
+		return error_allocate_fail
 	}
 
 	// try to collapse it's first filesystem block
@@ -191,3 +185,5 @@ func TestCollapse() (err error) {
 	                     0,
 	                     fs_block_size)
 }
+var error_tempfile_fail = errors.New("can't create a temporary file")
+var error_allocate_fail = errors.New("can't allocate disk space")

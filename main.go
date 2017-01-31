@@ -44,10 +44,17 @@ func main() {
 	flag.Parse()
 
 	// check if flags are correct
-	PostParsingCheckFlags()
+	err = PostParsingCheckFlags()
+	if err != nil {
+		log.Print(flag.Arg(0), " untouched")
+		log.Fatal("main, PostParsingCheckFlags err=\"", err, "\"")
+	}
 
 	if collapse_test { // --collapse-test
 		err = TestCollapse()
+		if err == error_tempfile_fail || err == error_allocate_fail {
+			log.Fatal("main, TestCollapse err=\"", err, "\"")
+		}
 		if err != nil {
 			fmt.Println("Collapse test : FAIL")
 			os.Exit(1)
@@ -72,7 +79,13 @@ func main() {
 
 		print_if_panic = fmt.Sprint(flag.Arg(0), " dumped but collapse fail")
 
-		CollapseFileStart(file, file_total_byte_deallocated)
+		// we can't collapse the whole file, so we make sure to keep at
+		// least one byte
+		_, err = CollapseFileStart(file, file_total_byte_deallocated - 1)
+		if err != nil {
+			log.Print(flag.Arg(0), " dumped but collapse fail")
+			log.Fatal("main, CollapseFileStart err=\"", err, "\"")
+		}
 
 	} else if truncate { // --truncate
 

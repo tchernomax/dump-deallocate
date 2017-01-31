@@ -24,16 +24,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 )
 
-var error_negative_or_zero = errors.New("negative or zero value")
-var error_int64_overflow   = errors.New("value too big to fit in int64")
-
 var collapse, collapse_test, truncate, remove bool
+var collapse_default, collapse_test_default, truncate_default, remove_default bool = false, false, false, false
 
 type size_type int64
 var buffer_size size_type = 32*1024 /* 32KiB */
@@ -124,6 +121,8 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	*size_obj = size_type(size_int)
 	return nil
 }
+var error_negative_or_zero = errors.New("negative or zero value")
+var error_int64_overflow   = errors.New("value too big to fit in int64")
 
 func init() {
 	// buffer_size
@@ -131,9 +130,8 @@ func init() {
 	flag.Var(&buffer_size, "b", "")
 
 	// collapse
-	collapse_default := false
 	flag.BoolVar(&collapse, "collapse", collapse_default, "")
-	flag.BoolVar(&collapse, "c",              collapse_default, "")
+	flag.BoolVar(&collapse, "c",        collapse_default, "")
 
 	// collapse_test
 	collapse_test_default := false
@@ -201,17 +199,22 @@ func init() {
 	}
 }
 
-func PostParsingCheckFlags() {
+func PostParsingCheckFlags() error {
 
 	if flag.NArg() != 1 && ! collapse_test {
-		log.Panic("PostParsingCheckFlags: missing argument")
+		return error_missing_file
 	}
 
 	if flag.NArg() != 0 && collapse_test {
-		log.Panic("PostParsingCheckFlags: -C doesn't accept other argument")
+		return error_have_file
 	}
 
 	if BoolToInt(collapse) + BoolToInt(collapse_test) + BoolToInt(truncate) + BoolToInt(remove) > 1 {
-		log.Panic("PostParsingCheckFlags: -c, -C, -t and -r are mutually exclusive")
+		return error_mutually_exclusive
 	}
+
+	return nil
 }
+var error_missing_file       = errors.New("missing file parameter")
+var error_have_file          = errors.New("-C doesn't accept file parameter")
+var error_mutually_exclusive = errors.New("-c, -C, -t and -r are mutually exclusive")

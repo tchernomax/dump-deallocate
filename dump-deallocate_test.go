@@ -25,17 +25,11 @@ func TestBoolToInt(t *testing.T) {
 func TestGetFilesystemBlockSize(t *testing.T) {
 	// create the test file
 	file, err := os.Open("LICENSE")
-	if err != nil {
-		t.Fatal(err)
-	}
+	if err != nil { t.Fatal(err) }
 	defer file.Close()
-	defer func() {
-		if r := recover(); r != nil {
-			t.Error("Panic : ", r)
-		}
-	}()
 
-	filesystem_block_size := GetFilesystemBlockSize(file)
+	filesystem_block_size, err := GetFilesystemBlockSize(file)
+	if err != nil { t.Fatal(err) }
 
 	if filesystem_block_size <= 0 {
 		t.Error("invalide filesystem block size returned : '%v'", filesystem_block_size)
@@ -117,43 +111,43 @@ func TestCopyWhileDeallocate(t *testing.T) {
 }
 
 func TestCollapseFileStart(t *testing.T) {
-	var should_panic bool = false
 	var err error
-	var file, dev_null *os.File
-	defer func() {
-		r := recover()
-		if r == nil && should_panic {
-			t.Error("Should panic")
-		}
-		if r != nil && ! should_panic {
-			t.Error("Should not panic : ", r)
-		}
-	}()
+	var file *os.File
+	var fs_block_size int64
+	should_fail := false
 
-	// first check TestCollapse
-	t.Run("TestCollapse", func(t *testing.T) {
-		err = TestCollapse()
-	})
-
-	if err != nil {
-		// TestCollapse work (doesn't panic) but
-		// fallocate collapse-range isn't working on the current filesystem
-		// so CollapseFileStart should panic
-		should_panic = true
-
-		// redirect stderr to /dev/null so we don't get output from log during
-		// panic (since it's a test function, we don't want the stderr output)
-		dev_null, err = os.OpenFile("/dev/null", os.O_WRONLY, 0666)
-		if err != nil { t.Fatal(err) }
-		err = unix.Dup2(int(dev_null.Fd()), 2)
-		if err != nil { t.Fatal(err) }
+	// check TestCollapse
+	err = TestCollapse()
+	if err == error_tempfile_fail || err == error_allocate_fail {
+		t.Fatal(err)
 	}
 
-	fs_block_size := GetFilesystemBlockSize(file)
+	if err != nil {
+		// TestCollapse work but fallocate collapse-range isn't
+		// working on the current filesystem
+		// so CollapseFileStart should fail
+		should_fail = true
+	}
 
+	// get fs block size
+	file, err = ioutil.TempFile(".", "dump-deallocate-TestCollapseFileStart-")
+	if err != nil { t.Fatal(err) }
+
+	fs_block_size, err = GetFilesystemBlockSize(file)
+	if err != nil { t.Fatal(err) }
+
+	err = file.Close()
+	if err != nil { t.Fatal(err) }
+
+	err = os.Remove(file.Name())
+	if err != nil { t.Fatal(err) }
+
+	// create function used on each test
 	createTestFile := func (size int64) {
+
 		file, err = ioutil.TempFile(".", "dump-deallocate-TestCollapseFileStart-")
 		if err != nil { t.Fatal(err) }
+
 		err = unix.Fallocate(int(file.Fd()),
 		                     0 /* Default: allocate disk space*/,
 		                     0,
@@ -176,12 +170,28 @@ func TestCollapseFileStart(t *testing.T) {
 	// check CollapseFileStart
 	for _, tc := range test_cases {
 		t.Run(tc.name, func(t *testing.T) {
+
 			createTestFile(2 * fs_block_size)
 			defer os.Remove(file.Name())
 			defer file.Close()
-			byte_actualy_deallocated = CollapseFileStart(file, fs_block_size)
+
+			byte_actualy_deallocated, err = CollapseFileStart(file, fs_block_size)
+
+			if should_fail {
+				if err == nil {
+					t.Fatal("should fail")
+				}
+				tc.expected = 0
+			} else {
+				if err != nil {
+					t.Fatalf("should not fail, got err: %v", err)
+				}
+			}
+
 			if byte_actualy_deallocated != tc.expected {
-				t.Error("expected: %d, got: %d", tc.expected, byte_actualy_deallocated)
+				t.Errorf("expected: %d, got: %d",
+				         tc.expected,
+				         byte_actualy_deallocated)
 			}
 		})
 	}
