@@ -130,13 +130,6 @@ func TestCollapseFileStart(t *testing.T) {
 		}
 	}()
 
-	// redirect stderr to /dev/null so we don't get output from
-	// log during tests
-	dev_null, err = os.OpenFile("/dev/null", os.O_WRONLY, 0666)
-	if err != nil { t.Fatal(err) }
-	err = unix.Dup2(int(dev_null.Fd()), 2)
-	if err != nil { t.Fatal(err) }
-
 	// first check TestCollapse
 	t.Run("TestCollapse", func(t *testing.T) {
 		err = TestCollapse()
@@ -147,6 +140,13 @@ func TestCollapseFileStart(t *testing.T) {
 		// fallocate collapse-range isn't working on the current filesystem
 		// so CollapseFileStart should panic
 		should_panic = true
+
+		// redirect stderr to /dev/null so we don't get output from log during
+		// panic (since it's a test function, we don't want the stderr output)
+		dev_null, err = os.OpenFile("/dev/null", os.O_WRONLY, 0666)
+		if err != nil { t.Fatal(err) }
+		err = unix.Dup2(int(dev_null.Fd()), 2)
+		if err != nil { t.Fatal(err) }
 	}
 
 	fs_block_size := GetFilesystemBlockSize(file)
