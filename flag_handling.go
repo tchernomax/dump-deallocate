@@ -35,7 +35,8 @@ var collapse_default, collapse_test_default, truncate_default, remove_default bo
 
 // size_type is used for --buffer-size
 type size_type int64
-var buffer_size size_type = 32*1024 /* 32KiB */
+
+var buffer_size size_type = 32 * 1024 /* 32KiB */
 
 // used by the "flag" package to handle --buffer-size parsing
 func (size_obj *size_type) String() string {
@@ -51,7 +52,7 @@ func (size_obj *size_type) String() string {
 func (size_obj *size_type) Set(size_str string) (err error) {
 	var size_int int64
 
-	if ! strings.HasSuffix(size_str, "B") {
+	if !strings.HasSuffix(size_str, "B") {
 		// if the number in size_str is to big to fit in int64
 		// ParseInt raise an error
 		size_int, err = strconv.ParseInt(size_str, 10, 64)
@@ -85,7 +86,7 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	// …
 	power := 0
 	size_suffix_power := [6]string{"K", "M", "G", "T", "P", "E"}
-	for power_index,power_suffix := range size_suffix_power {
+	for power_index, power_suffix := range size_suffix_power {
 		if strings.HasSuffix(size_str_modified, power_suffix) {
 			power = power_index + 1
 			// remove the suffix
@@ -109,7 +110,7 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	multiplicator := int64(1)
 	if base_1024 {
 		// 1*(1024^power)
-		multiplicator = ( 1 << (uint(power) * 10) )
+		multiplicator = (1 << (uint(power) * 10))
 	} else /* base 1000 */ {
 		// quick and durty way to do : 1*(1000^power)
 		for i := 0; i < power; i++ {
@@ -121,7 +122,7 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	// and check if we do integer overflow
 	size_int_before_multiply := size_int
 	size_int = size_int_before_multiply * multiplicator
-	if size_int / multiplicator != size_int_before_multiply {
+	if size_int/multiplicator != size_int_before_multiply {
 		return error_int64_overflow
 	}
 
@@ -129,8 +130,9 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	*size_obj = size_type(size_int)
 	return nil
 }
+
 var error_negative_or_zero = errors.New("negative or zero value")
-var error_int64_overflow   = errors.New("value too big to fit in int64")
+var error_int64_overflow = errors.New("value too big to fit in int64")
 
 func init() {
 	// buffer_size
@@ -139,71 +141,71 @@ func init() {
 
 	// collapse
 	flag.BoolVar(&collapse, "collapse", collapse_default, "")
-	flag.BoolVar(&collapse, "c",        collapse_default, "")
+	flag.BoolVar(&collapse, "c", collapse_default, "")
 
 	// collapse_test
 	collapse_test_default := false
 	flag.BoolVar(&collapse_test, "collapse-test", collapse_test_default, "")
-	flag.BoolVar(&collapse_test, "C",             collapse_test_default, "")
+	flag.BoolVar(&collapse_test, "C", collapse_test_default, "")
 
 	// truncate
 	truncate_default := false
 	flag.BoolVar(&truncate, "truncate", truncate_default, "")
-	flag.BoolVar(&truncate, "t",        truncate_default, "")
+	flag.BoolVar(&truncate, "t", truncate_default, "")
 
 	// remove
 	remove_default := false
 	flag.BoolVar(&remove, "remove", remove_default, "")
-	flag.BoolVar(&remove, "r",      remove_default, "")
+	flag.BoolVar(&remove, "r", remove_default, "")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
-		            "Usage: %s [-b BYTES] [-c|-t|-r] FILE\n" +
-		            " Dump FILE on stdout and deallocate it at the same time.\n" +
-		            " More precisely:\n" +
-		            "   1. read BYTES bytes from FILE\n" +
-		            "   2. write thoses bytes on stdout\n" +
-		            "   3. deallocate BYTES bytes from FILE (fallocate punch-hole)\n" +
-		            "      and go back to 1.\n\n" +
+			"Usage: %s [-b BYTES] [-c|-t|-r] FILE\n"+
+				" Dump FILE on stdout and deallocate it at the same time.\n"+
+				" More precisely:\n"+
+				"   1. read BYTES bytes from FILE\n"+
+				"   2. write thoses bytes on stdout\n"+
+				"   3. deallocate BYTES bytes from FILE (fallocate punch-hole)\n"+
+				"      and go back to 1.\n\n"+
 
-		            "Options:\n" +
-		            " -b, --buffer-size BYTES\n" +
-		            "        Memory buffer size in byte (default %dKiB).\n" +
-			    "        BYTES  may  be followed by the following multiplicative suffixes:\n" +
-			    "         - IEC unit:\n" +
-			    "           - KiB = 1024\n" +
-			    "           - MiB = 1024×1024\n" +
-			    "           …\n" +
-			    "           - EiB = 1024⁶\n" +
-			    "         - SI unit:\n" +
-			    "           - KB = 1000\n" +
-			    "           - MB = 1000×1000\n" +
-			    "           …\n" +
-			    "           - EB = 1000⁶\n\n" +
+				"Options:\n"+
+				" -b, --buffer-size BYTES\n"+
+				"        Memory buffer size in byte (default %dKiB).\n"+
+				"        BYTES  may  be followed by the following multiplicative suffixes:\n"+
+				"         - IEC unit:\n"+
+				"           - KiB = 1024\n"+
+				"           - MiB = 1024×1024\n"+
+				"           …\n"+
+				"           - EiB = 1024⁶\n"+
+				"         - SI unit:\n"+
+				"           - KB = 1000\n"+
+				"           - MB = 1000×1000\n"+
+				"           …\n"+
+				"           - EB = 1000⁶\n\n"+
 
-		            " -c, --collapse\n" +
-		            "        At the end of the whole dump, remove/collapse (with fallocate collapse-range)\n" +
-		            "        the greatest number of filesystem blocks already dumped.\n" +
-		            "        On normal condition, at the end, FILE will size one filesystem block.\n\n" +
+				" -c, --collapse\n"+
+				"        At the end of the whole dump, remove/collapse (with fallocate collapse-range)\n"+
+				"        the greatest number of filesystem blocks already dumped.\n"+
+				"        On normal condition, at the end, FILE will size one filesystem block.\n\n"+
 
-		            "        Supported on ext4 from Linux 3.15.\n\n" +
+				"        Supported on ext4 from Linux 3.15.\n\n"+
 
-		            " -C, --collapse-test\n" +
-		            "        Test the collapse functionnality.\n" +
-		            "        Create a file named dump-deallocate-collapse-test-<random str>\n" +
-			    "        in the working directory and try to collapse it\n" +
-			    "        Remove file after the test.\n\n" +
+				" -C, --collapse-test\n"+
+				"        Test the collapse functionnality.\n"+
+				"        Create a file named dump-deallocate-collapse-test-<random str>\n"+
+				"        in the working directory and try to collapse it\n"+
+				"        Remove file after the test.\n\n"+
 
-		            " -t, --truncate\n" +
-		            "        Truncate FILE (to size 0) at the end of the whole dump\n" +
-		            "        It is not recommended since another process can write in FILE between\n" +
-		            "        the last read and the truncate call.\n" +
-		            "        On normal condition, at the end, FILE will size 0.\n\n" +
+				" -t, --truncate\n"+
+				"        Truncate FILE (to size 0) at the end of the whole dump\n"+
+				"        It is not recommended since another process can write in FILE between\n"+
+				"        the last read and the truncate call.\n"+
+				"        On normal condition, at the end, FILE will size 0.\n\n"+
 
-		            " -r, --remove\n" +
-		            "        Remove FILE at the end of the whole dump\n" +
-		            "        It is not recommended since another process might be using FILE.\n",
-		            os.Args[0], int64(buffer_size) / 1024)
+				" -r, --remove\n"+
+				"        Remove FILE at the end of the whole dump\n"+
+				"        It is not recommended since another process might be using FILE.\n",
+			os.Args[0], int64(buffer_size)/1024)
 	}
 }
 
@@ -213,7 +215,7 @@ func init() {
  */
 func PostParsingCheckFlags() error {
 
-	if flag.NArg() != 1 && ! collapse_test {
+	if flag.NArg() != 1 && !collapse_test {
 		return error_missing_file
 	}
 
@@ -221,12 +223,13 @@ func PostParsingCheckFlags() error {
 		return error_have_file
 	}
 
-	if BoolToInt(collapse) + BoolToInt(collapse_test) + BoolToInt(truncate) + BoolToInt(remove) > 1 {
+	if BoolToInt(collapse)+BoolToInt(collapse_test)+BoolToInt(truncate)+BoolToInt(remove) > 1 {
 		return error_mutually_exclusive
 	}
 
 	return nil
 }
-var error_missing_file       = errors.New("missing file parameter")
-var error_have_file          = errors.New("-C doesn't accept file parameter")
+
+var error_missing_file = errors.New("missing file parameter")
+var error_have_file = errors.New("-C doesn't accept file parameter")
 var error_mutually_exclusive = errors.New("-c, -C, -t and -r are mutually exclusive")

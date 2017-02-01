@@ -47,9 +47,9 @@ func GetFilesystemBlockSize(file *os.File) int64 {
 	var filesystem_info unix.Statfs_t
 
 	err := unix.Fstatfs(int(file.Fd()), &filesystem_info)
-        if err != nil {
-                log.Panic("GetFilesystemBlockSize, unix.Fstatfs err=\"", err, "\"")
-        }
+	if err != nil {
+		log.Panicf("GetFilesystemBlockSize, unix.Fstatfs err='%v'", err)
+	}
 
 	return filesystem_info.Bsize
 }
@@ -84,7 +84,7 @@ func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deall
 			output_total_byte_written += int64(nb_byte_written)
 
 			if err != nil {
-				log.Panic("CopyWhileDeallocate, os.Stdout.Write err=\"", err, "\"")
+				log.Panicf("CopyWhileDeallocate, os.Stdout.Write err='%v'", err)
 			}
 			// fail to write as much byte as we read
 			if nb_byte_read != nb_byte_written {
@@ -93,11 +93,11 @@ func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deall
 
 			// deallocate the read bytes from file
 			err = unix.Fallocate(int(file.Fd()),
-			                     0x02 /*FALLOC_FL_PUNCH_HOLE*/ | 0x01 /*FALLOC_FL_KEEP_SIZE*/,
-			                     file_total_byte_deallocated,
-			                     int64(nb_byte_read))
+				0x02 /*FALLOC_FL_PUNCH_HOLE*/ |0x01, /*FALLOC_FL_KEEP_SIZE*/
+				file_total_byte_deallocated,
+				int64(nb_byte_read))
 			if err != nil {
-				log.Panic("CopyWhileDeallocate, unix.Fallocate punch-hole err=\"", err, "\"")
+				log.Panicf("CopyWhileDeallocate, unix.Fallocate punch-hole err='%v'", err)
 			}
 
 			/* notes on Fallocate:
@@ -115,7 +115,7 @@ func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deall
 			*  Also we can't fix the issue by moving the seek pointer because the file can be open
 			*  by other process. On some conditions if this other process write on the file,
 			*  the x bytes removed by fallocate are added back by the kernel (as zeros, sparse).
-			*/
+			 */
 
 			file_total_byte_deallocated += int64(nb_byte_read)
 		}
@@ -160,17 +160,17 @@ func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_d
 	var file_info unix.Stat_t
 	err = unix.Fstat(int(file.Fd()), &file_info)
 	if err != nil {
-                log.Panic("GetFilesystemBlockSize, unix.Fstat err=\"", err, "\"")
+		log.Panicf("GetFilesystemBlockSize, unix.Fstat err='%v'", err)
 	}
 
-	file_size_in_fsb := file_info.Blocks / ( fs_block_size / 512 )
+	file_size_in_fsb := file_info.Blocks / (fs_block_size / 512)
 
 	if file_size_in_fsb == 1 {
 		return 0, error_less_than_one_fsb
 	}
 
 	// we make sure collapse_len is a multiple of the filesystem block size
-	collapse_len := bytes_to_deallocate - ( bytes_to_deallocate % fs_block_size )
+	collapse_len := bytes_to_deallocate - (bytes_to_deallocate % fs_block_size)
 	collapse_len_in_fsb := collapse_len / fs_block_size
 
 	// we can't deallocate the whole file
@@ -185,17 +185,18 @@ func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_d
 
 	// collapse (erase) the greatest number of filesystem blocks already dumped/read
 	err = unix.Fallocate(int(file.Fd()),
-	                     0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
-	                     0,
-	                     collapse_len)
+		0x08, /*FALLOC_FL_COLLAPSE_RANGE*/
+		0,
+		collapse_len)
 
 	if err != nil && err != unix.EOPNOTSUPP {
-		log.Panic("CollapseFileStart, unix.Fallocate err=\"", err, "\"")
+		log.Panicf("CollapseFileStart, unix.Fallocate err='%v'", err)
 	}
 
 	return collapse_len, err
 }
-var error_zero          = errors.New("try to deallocate 0 or less bytes")
+
+var error_zero = errors.New("try to deallocate 0 or less bytes")
 var error_less_than_one_fsb = errors.New("can't collapse the file to less than one file system block")
 
 /**
@@ -211,7 +212,7 @@ func TestCollapse() (err error) {
 	// create the test file
 	file, err := ioutil.TempFile(".", "dump-deallocate-collapse-test-")
 	if err != nil {
-		log.Panic("TestCollapse, ioutil.TempFile err=\"", err, "\"")
+		log.Panicf("TestCollapse, ioutil.TempFile err='%v'", err)
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
@@ -220,21 +221,21 @@ func TestCollapse() (err error) {
 	// len have to be multiple of the filesystem block size)
 	fs_block_size := GetFilesystemBlockSize(file)
 	err = unix.Fallocate(int(file.Fd()),
-	                     0 /* Default: allocate disk space*/,
-	                     0,
-	                     2 * fs_block_size)
+		0, /* Default: allocate disk space*/
+		0,
+		2*fs_block_size)
 	if err != nil {
-		log.Panic("TestCollapse, unix.Fallocate err=\"", err, "\"")
+		log.Panicf("TestCollapse, unix.Fallocate err='%v'", err)
 	}
 
 	// try to collapse it's first filesystem block
 	err = unix.Fallocate(int(file.Fd()),
-	                     0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
-	                     0,
-	                     fs_block_size)
+		0x08, /*FALLOC_FL_COLLAPSE_RANGE*/
+		0,
+		fs_block_size)
 
 	if err != nil && err != unix.EOPNOTSUPP {
-		log.Panic("TestCollapse, unix.Fallocate err=\"", err, "\"")
+		log.Panicf("TestCollapse, unix.Fallocate err='%v'", err)
 	}
 
 	return err

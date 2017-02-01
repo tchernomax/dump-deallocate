@@ -49,7 +49,7 @@ func mainWithExitCode() (exit_code int) {
 	err = PostParsingCheckFlags()
 	if err != nil {
 		log.Print(flag.Arg(0), " untouched")
-		log.Print("main, PostParsingCheckFlags err=\"", err, "\"")
+		log.Printf("main, PostParsingCheckFlags err='%v'", err)
 		return 1
 	}
 
@@ -67,7 +67,7 @@ func mainWithExitCode() (exit_code int) {
 	file, err = os.OpenFile(flag.Arg(0), os.O_RDWR, 0644)
 	if err != nil {
 		log.Print(flag.Arg(0), " untouched")
-		log.Print("main, os.OpenFile err=\"", err, "\"")
+		log.Printf("main, os.OpenFile err='%v'", err)
 		return 1
 	}
 	defer file.Close()
@@ -82,10 +82,10 @@ func mainWithExitCode() (exit_code int) {
 
 		// we can't collapse the whole file, so we make sure to keep at
 		// least one byte
-		_, err = CollapseFileStart(file, file_total_byte_deallocated - 1)
+		_, err = CollapseFileStart(file, file_total_byte_deallocated-1)
 		if err != unix.EOPNOTSUPP {
 			log.Print(flag.Arg(0), " dumped but collapse fail")
-			log.Print("main, CollapseFileStart err=\"", err, "\"")
+			log.Printf("main, CollapseFileStart err='%v'", err)
 			return 1
 		}
 
@@ -95,7 +95,7 @@ func mainWithExitCode() (exit_code int) {
 		err = unix.Ftruncate(int(file.Fd()), 0)
 		if err != nil {
 			log.Print(flag.Arg(0), " dumped but truncate fail")
-			log.Print("main, unix.Ftruncate err=\"", err, "\"")
+			log.Printf("main, unix.Ftruncate err='%v'", err)
 			return 1
 		}
 
@@ -108,7 +108,7 @@ func mainWithExitCode() (exit_code int) {
 		file = nil
 		if err != nil {
 			log.Printf("%s dumped but close fail", flag.Arg(0))
-			log.Print("main, file.Close err=\"", err, "\"")
+			log.Print("main, file.Close err='%v'", err)
 			return 1
 		}
 
@@ -116,7 +116,7 @@ func mainWithExitCode() (exit_code int) {
 		err = os.Remove(flag.Arg(0))
 		if err != nil {
 			log.Printf("%s dumped but remove fail", flag.Arg(0))
-			log.Print("main, os.Remove err=\"", err, "\"")
+			log.Printf("main, os.Remove err='%v'", err)
 			return 1
 		}
 	}

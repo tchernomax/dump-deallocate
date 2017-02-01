@@ -1,4 +1,5 @@
 package main
+
 import (
 	"flag"
 	"strconv"
@@ -8,7 +9,7 @@ import (
 
 // check if default buffer size is a multiple of 1024
 func TestDefaultBufferSize(t *testing.T) {
-	if buffer_size % 1024 != 0 {
+	if buffer_size%1024 != 0 {
 		t.Error("buffer_size (default buffer size) should be a multiple of 1024")
 	}
 }
@@ -17,9 +18,9 @@ func TestBufferSizeParsing(t *testing.T) {
 	buffer_size := new(size_type)
 
 	test_cases := []struct {
-		input_v     string
-		expected_v  int64
-		expected_e  error
+		input_v    string
+		expected_v int64
+		expected_e error
 	}{
 		{"10",      10,      nil},
 		{"10KiB",   10*1024, nil},
@@ -60,8 +61,8 @@ func TestPostParsingCheckFlags(t *testing.T) {
 	var err error
 
 	test_cases := []struct {
-		input_v     []string
-		expected_e  error
+		input_v    []string
+		expected_e error
 	}{
 		{[]string{"test"},             nil},
 		{[]string{"-C"},               nil},
