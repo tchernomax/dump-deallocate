@@ -29,7 +29,7 @@ import (
 	"os"
 )
 
-// TODO document
+// Transform a boolean into integer
 func BoolToInt(boolean bool) int {
 	if boolean {
 		return 1
@@ -37,25 +37,35 @@ func BoolToInt(boolean bool) int {
 	return 0
 }
 
-func GetFilesystemBlockSize(file *os.File) (int64, error) {
+/**
+ * Get the filesystem block size where file is located
+ *
+ * Can Panic.
+ */
+func GetFilesystemBlockSize(file *os.File) int64 {
 
 	var filesystem_info unix.Statfs_t
-	err := unix.Fstatfs(int(file.Fd()), &filesystem_info)
-	if err != nil {
-		return 0, err
-	}
 
-	return filesystem_info.Bsize, nil
+	err := unix.Fstatfs(int(file.Fd()), &filesystem_info)
+        if err != nil {
+                log.Panic("GetFilesystemBlockSize, unix.Fstatfs err=\"", err, "\"")
+        }
+
+	return filesystem_info.Bsize
 }
 
 /**
+ * Copy file to output while deallocating file.
+ * Use a memory buffer of buffer_size.
+ * Return the number of bytes deallocated and written, which should be equal.
+ *
  * Can Panic.
  */
-func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deallocated int64, stdout_total_byte_written int64) {
+func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deallocated int64, output_total_byte_written int64) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Print("file_total_byte_deallocated: ", file_total_byte_deallocated)
-			log.Print("stdout_total_byte_written: ", stdout_total_byte_written)
+			log.Print("output_total_byte_written: ", output_total_byte_written)
 			panic(r)
 		}
 	}()
@@ -69,9 +79,9 @@ func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deall
 
 		if nb_byte_read > 0 {
 
-			// write the bytes we just read on stdout
+			// write on output the bytes we just read in file
 			nb_byte_written, err := output.Write(buffer[0:nb_byte_read])
-			stdout_total_byte_written += int64(nb_byte_written)
+			output_total_byte_written += int64(nb_byte_written)
 
 			if err != nil {
 				log.Panic("CopyWhileDeallocate, os.Stdout.Write err=\"", err, "\"")
@@ -121,25 +131,56 @@ func CopyWhileDeallocate(file *os.File, output io.Writer) (file_total_byte_deall
 		}
 	}
 
-	return file_total_byte_deallocated, stdout_total_byte_written
+	return file_total_byte_deallocated, output_total_byte_written
 }
 
+/**
+ * Collapse (man 2 fallocate) file of the maximum number of byte possible less than bytes_to_deallocate.
+ * For exemple if file is 2 filesystem block (fsb), and you try to deallocate more bytes, the function will
+ * deallocate 1 filesystem block (fallocate can't collapse the whole file).
+ *
+ * Can return errors: nil, error_zero, error_less_than_one_fsb and unix.EOPNOTSUPP.
+ *
+ * Can Panic.
+ */
 func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_deallocated int64, err error) {
+
+	// fsb : file system block
+
+	if bytes_to_deallocate <= 0 {
+		return 0, error_zero
+	}
 
 	// for COLLAPSE_RANGE, offset and len have to
 	// be multiple of the filesystem block size
 	// so we get filesystem informations (including block size)
-	var fs_block_size int64
-	fs_block_size, err = GetFilesystemBlockSize(file)
+	fs_block_size := GetFilesystemBlockSize(file)
+
+	// get number of fsb in the file
+	var file_info unix.Stat_t
+	err = unix.Fstat(int(file.Fd()), &file_info)
 	if err != nil {
-		return 0, err
+                log.Panic("GetFilesystemBlockSize, unix.Fstat err=\"", err, "\"")
+	}
+
+	file_size_in_fsb := file_info.Blocks / ( fs_block_size / 512 )
+
+	if file_size_in_fsb == 1 {
+		return 0, error_less_than_one_fsb
 	}
 
 	// we make sure collapse_len is a multiple of the filesystem block size
 	collapse_len := bytes_to_deallocate - ( bytes_to_deallocate % fs_block_size )
-	if collapse_len <= 0 {
-		// the file already size one filesystem block
-		return 0, error_file_size_on_fsb
+	collapse_len_in_fsb := collapse_len / fs_block_size
+
+	// we can't deallocate the whole file
+	if collapse_len_in_fsb >= file_size_in_fsb {
+		collapse_len -= fs_block_size
+		collapse_len_in_fsb -= 1
+	}
+
+	if collapse_len_in_fsb < 1 {
+		return 0, error_zero
 	}
 
 	// collapse (erase) the greatest number of filesystem blocks already dumped/read
@@ -147,43 +188,54 @@ func CollapseFileStart(file *os.File, bytes_to_deallocate int64) (byte_actualy_d
 	                     0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
 	                     0,
 	                     collapse_len)
-	if err != nil {
-		return 0, err
+
+	if err != nil && err != unix.EOPNOTSUPP {
+		log.Panic("CollapseFileStart, unix.Fallocate err=\"", err, "\"")
 	}
 
-	return collapse_len, nil
+	return collapse_len, err
 }
-var error_file_size_on_fsb = errors.New("file already size one filesystem block")
+var error_zero          = errors.New("try to deallocate 0 or less bytes")
+var error_less_than_one_fsb = errors.New("can't collapse the file to less than one file system block")
 
+/**
+ * Test the collapse feature of fallocate.
+ * The function create a temporary file on the working directory and try to collapse it.
+ *
+ * Can return nil or unix.EOPNOTSUPP.
+ *
+ * Can Panic.
+ */
 func TestCollapse() (err error) {
 
 	// create the test file
 	file, err := ioutil.TempFile(".", "dump-deallocate-collapse-test-")
 	if err != nil {
-		return error_tempfile_fail
+		log.Panic("TestCollapse, ioutil.TempFile err=\"", err, "\"")
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
 
 	// resize it to : 2 filesystem block size (as COLLAPSE_RANGE
 	// len have to be multiple of the filesystem block size)
-	var fs_block_size int64
-	fs_block_size, err = GetFilesystemBlockSize(file)
-	if err != nil { return err }
-
+	fs_block_size := GetFilesystemBlockSize(file)
 	err = unix.Fallocate(int(file.Fd()),
 	                     0 /* Default: allocate disk space*/,
 	                     0,
 	                     2 * fs_block_size)
 	if err != nil {
-		return error_allocate_fail
+		log.Panic("TestCollapse, unix.Fallocate err=\"", err, "\"")
 	}
 
 	// try to collapse it's first filesystem block
-	return unix.Fallocate(int(file.Fd()),
+	err = unix.Fallocate(int(file.Fd()),
 	                     0x08 /*FALLOC_FL_COLLAPSE_RANGE*/,
 	                     0,
 	                     fs_block_size)
+
+	if err != nil && err != unix.EOPNOTSUPP {
+		log.Panic("TestCollapse, unix.Fallocate err=\"", err, "\"")
+	}
+
+	return err
 }
-var error_tempfile_fail = errors.New("can't create a temporary file")
-var error_allocate_fail = errors.New("can't allocate disk space")

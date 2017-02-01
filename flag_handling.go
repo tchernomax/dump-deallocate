@@ -29,17 +29,25 @@ import (
 	"strings"
 )
 
+// boolean corresponding to flags
 var collapse, collapse_test, truncate, remove bool
 var collapse_default, collapse_test_default, truncate_default, remove_default bool = false, false, false, false
 
+// size_type is used for --buffer-size
 type size_type int64
 var buffer_size size_type = 32*1024 /* 32KiB */
-// used by "flag" to handle buffer_size
+
+// used by the "flag" package to handle --buffer-size parsing
 func (size_obj *size_type) String() string {
 	return fmt.Sprintf("%d", int64(*size_obj))
 }
-/* used by "flag" to handle buffer_size
- * transforme …KiB, MiB, KB, etc. in int64 */
+
+/**
+ * This function is used by the "flag" package to handle --buffer-size parsing.
+ * It transforme …KiB, MiB, KB, etc. in int64.
+ *
+ * Can return: nil, strconv errors, error_negative_or_zero or error_int64_overflow
+ */
 func (size_obj *size_type) Set(size_str string) (err error) {
 	var size_int int64
 
@@ -199,6 +207,10 @@ func init() {
 	}
 }
 
+/**
+ * Verify some conditions on flags after the parsing.
+ * Can return: nil, error_missing_file, error_have_file or error_mutually_exclusive
+ */
 func PostParsingCheckFlags() error {
 
 	if flag.NArg() != 1 && ! collapse_test {

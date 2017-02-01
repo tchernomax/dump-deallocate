@@ -28,16 +28,18 @@ import (
 	"os"
 )
 
-func main() {
+func main() { os.Exit(mainWithExitCode()) }
+func mainWithExitCode() (exit_code int) {
 	var err error
 	var print_if_panic string
 	var file *os.File
+	exit_code = 0
 	defer func() {
 		if r := recover(); r != nil {
 			if len(print_if_panic) != 0 {
 				log.Print(print_if_panic)
 			}
-			os.Exit(1)
+			exit_code = 2
 		}
 	}()
 
@@ -47,27 +49,26 @@ func main() {
 	err = PostParsingCheckFlags()
 	if err != nil {
 		log.Print(flag.Arg(0), " untouched")
-		log.Fatal("main, PostParsingCheckFlags err=\"", err, "\"")
+		log.Print("main, PostParsingCheckFlags err=\"", err, "\"")
+		return 1
 	}
 
 	if collapse_test { // --collapse-test
 		err = TestCollapse()
-		if err == error_tempfile_fail || err == error_allocate_fail {
-			log.Fatal("main, TestCollapse err=\"", err, "\"")
-		}
 		if err != nil {
 			fmt.Println("Collapse test : FAIL")
-			os.Exit(1)
+			return 1
 		}
 		fmt.Println("Collapse test : OK")
-		return
+		return 0
 	}
 
 	// open source file
 	file, err = os.OpenFile(flag.Arg(0), os.O_RDWR, 0644)
 	if err != nil {
 		log.Print(flag.Arg(0), " untouched")
-		log.Fatal("main, os.OpenFile err=\"", err, "\"")
+		log.Print("main, os.OpenFile err=\"", err, "\"")
+		return 1
 	}
 	defer file.Close()
 
@@ -82,9 +83,10 @@ func main() {
 		// we can't collapse the whole file, so we make sure to keep at
 		// least one byte
 		_, err = CollapseFileStart(file, file_total_byte_deallocated - 1)
-		if err != nil {
+		if err != unix.EOPNOTSUPP {
 			log.Print(flag.Arg(0), " dumped but collapse fail")
-			log.Fatal("main, CollapseFileStart err=\"", err, "\"")
+			log.Print("main, CollapseFileStart err=\"", err, "\"")
+			return 1
 		}
 
 	} else if truncate { // --truncate
@@ -93,7 +95,8 @@ func main() {
 		err = unix.Ftruncate(int(file.Fd()), 0)
 		if err != nil {
 			log.Print(flag.Arg(0), " dumped but truncate fail")
-			log.Fatal("main, unix.Ftruncate err=\"", err, "\"")
+			log.Print("main, unix.Ftruncate err=\"", err, "\"")
+			return 1
 		}
 
 	} else if remove { // --remove
@@ -105,14 +108,17 @@ func main() {
 		file = nil
 		if err != nil {
 			log.Printf("%s dumped but close fail", flag.Arg(0))
-			log.Fatal("main, file.Close err=\"", err, "\"")
+			log.Print("main, file.Close err=\"", err, "\"")
+			return 1
 		}
 
 		// remove file
 		err = os.Remove(flag.Arg(0))
 		if err != nil {
 			log.Printf("%s dumped but remove fail", flag.Arg(0))
-			log.Fatal("main, os.Remove err=\"", err, "\"")
+			log.Print("main, os.Remove err=\"", err, "\"")
+			return 1
 		}
 	}
+	return 0
 }

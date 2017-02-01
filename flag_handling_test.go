@@ -63,6 +63,7 @@ func TestPostParsingCheckFlags(t *testing.T) {
 		input_v     []string
 		expected_e  error
 	}{
+		{[]string{"test"},             nil},
 		{[]string{"-C"},               nil},
 		{[]string{"-c", "test"},       nil},
 		{[]string{"-t", "test"},       nil},

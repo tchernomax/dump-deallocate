@@ -28,11 +28,15 @@ func TestGetFilesystemBlockSize(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	defer file.Close()
 
-	filesystem_block_size, err := GetFilesystemBlockSize(file)
-	if err != nil { t.Fatal(err) }
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("Panic: ", r)
+		}
+	}()
+	filesystem_block_size := GetFilesystemBlockSize(file)
 
 	if filesystem_block_size <= 0 {
-		t.Error("invalide filesystem block size returned : '%v'", filesystem_block_size)
+		t.Errorf("invalide filesystem block size returned : '%v'", filesystem_block_size)
 	}
 }
 
@@ -83,7 +87,7 @@ func TestCopyWhileDeallocate(t *testing.T) {
 
 	// check if buffer has been feed with content of file (LICENSE)
 	if ! bytes.Equal(test_content, output_buffer.Bytes()) {
-		t.Error("content hasn't been copied correctly, see '%s'", file.Name())
+		t.Errorf("content hasn't been copied correctly, see '%s'", file.Name())
 	}
 
 	// check if file now only contain \0
@@ -114,27 +118,23 @@ func TestCollapseFileStart(t *testing.T) {
 	var err error
 	var file *os.File
 	var fs_block_size int64
-	should_fail := false
 
 	// check TestCollapse
-	err = TestCollapse()
-	if err == error_tempfile_fail || err == error_allocate_fail {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("Panic: ", r)
+		}
+	}()
+	testcollapse_err := TestCollapse()
+	if testcollapse_err != nil && testcollapse_err != unix.EOPNOTSUPP {
 		t.Fatal(err)
-	}
-
-	if err != nil {
-		// TestCollapse work but fallocate collapse-range isn't
-		// working on the current filesystem
-		// so CollapseFileStart should fail
-		should_fail = true
 	}
 
 	// get fs block size
 	file, err = ioutil.TempFile(".", "dump-deallocate-TestCollapseFileStart-")
 	if err != nil { t.Fatal(err) }
 
-	fs_block_size, err = GetFilesystemBlockSize(file)
-	if err != nil { t.Fatal(err) }
+	fs_block_size = GetFilesystemBlockSize(file)
 
 	err = file.Close()
 	if err != nil { t.Fatal(err) }
@@ -148,10 +148,8 @@ func TestCollapseFileStart(t *testing.T) {
 		file, err = ioutil.TempFile(".", "dump-deallocate-TestCollapseFileStart-")
 		if err != nil { t.Fatal(err) }
 
-		err = unix.Fallocate(int(file.Fd()),
-		                     0 /* Default: allocate disk space*/,
-		                     0,
-		                     size)
+		// mode 0 = Default: allocate disk space
+		err = unix.Fallocate(int(file.Fd()), 0, 0, size)
 		if err != nil { t.Fatal(err) }
 	}
 
@@ -161,36 +159,38 @@ func TestCollapseFileStart(t *testing.T) {
 		name                string
 		file_size           int64
 		bytes_to_deallocate int64
-		expected            int64
+		expected_v          int64
+		expected_e          error
 	}{
-		{"2fsb|1fsb",   2*fs_block_size, fs_block_size, fs_block_size},
-		{"2fsb|1.5fsb", 2*fs_block_size, fs_block_size + fs_block_size/2, fs_block_size},
+		{"1fsb|-1",     fs_block_size,   -1, 0, error_zero},
+		{"1fsb|1",      fs_block_size,   1,  0, error_less_than_one_fsb},
+		{"2fsb|1fsb",   2*fs_block_size, fs_block_size, fs_block_size,    testcollapse_err},
+		{"2fsb|1.5fsb", 2*fs_block_size, fs_block_size + fs_block_size/2, fs_block_size, testcollapse_err},
 	}
 
 	// check CollapseFileStart
 	for _, tc := range test_cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			createTestFile(2 * fs_block_size)
+			createTestFile(tc.file_size)
 			defer os.Remove(file.Name())
 			defer file.Close()
 
-			byte_actualy_deallocated, err = CollapseFileStart(file, fs_block_size)
+			defer func() {
+				if r := recover(); r != nil {
+					t.Error("Panic: ", r)
+				}
+			}()
 
-			if should_fail {
-				if err == nil {
-					t.Fatal("should fail")
-				}
-				tc.expected = 0
-			} else {
-				if err != nil {
-					t.Fatalf("should not fail, got err: %v", err)
-				}
+			byte_actualy_deallocated, err = CollapseFileStart(file, tc.bytes_to_deallocate)
+
+			if err != tc.expected_e {
+				t.Fatalf("expected error %v, got err: %v", tc.expected_e, err)
 			}
 
-			if byte_actualy_deallocated != tc.expected {
+			if byte_actualy_deallocated != tc.expected_v {
 				t.Errorf("expected: %d, got: %d",
-				         tc.expected,
+				         tc.expected_v,
 				         byte_actualy_deallocated)
 			}
 		})
