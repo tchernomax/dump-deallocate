@@ -11,19 +11,19 @@ import (
 func TestBoolToInt(t *testing.T) {
 
 	t.Run("true", func(t *testing.T) {
-		if return_v := BoolToInt(true); return_v != 1 {
-			t.Errorf("got '%v'; expected '%v'", return_v, 1)
+		if returnV := BoolToInt(true); returnV != 1 {
+			t.Errorf("got '%v'; expected '%v'", returnV, 1)
 		}
 	})
 
 	t.Run("false", func(t *testing.T) {
-		if return_v := BoolToInt(false); return_v != 0 {
-			t.Errorf("got '%v'; expected '%v'", return_v, 0)
+		if returnV := BoolToInt(false); returnV != 0 {
+			t.Errorf("got '%v'; expected '%v'", returnV, 0)
 		}
 	})
 }
 
-func TestGetFilesystemBlockSize(t *testing.T) {
+func TestFilesystemBlockSize(t *testing.T) {
 	// create the test file
 	file, err := os.Open("LICENSE")
 	if err != nil {
@@ -36,10 +36,10 @@ func TestGetFilesystemBlockSize(t *testing.T) {
 			t.Error("Panic: ", r)
 		}
 	}()
-	filesystem_block_size := GetFilesystemBlockSize(file)
+	filesystemBlockSize := FilesystemBlockSize(file)
 
-	if filesystem_block_size <= 0 {
-		t.Errorf("invalide filesystem block size returned : '%v'", filesystem_block_size)
+	if filesystemBlockSize <= 0 {
+		t.Errorf("invalide filesystem block size returned : '%v'", filesystemBlockSize)
 	}
 }
 
@@ -51,7 +51,7 @@ func TestCopyWhileDeallocate(t *testing.T) {
 	}()
 
 	// get content from LICENSE file
-	test_content, err := ioutil.ReadFile("LICENSE")
+	testContent, err := ioutil.ReadFile("LICENSE")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestCopyWhileDeallocate(t *testing.T) {
 	defer file.Close()
 
 	// write the test content (LICENSE) on the test file
-	_, err = file.Write(test_content)
+	_, err = file.Write(testContent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,19 +89,19 @@ func TestCopyWhileDeallocate(t *testing.T) {
 	}
 
 	// get file stats before the CopyWhileDeallocate
-	var file_info_before unix.Stat_t
-	err = unix.Fstat(int(file.Fd()), &file_info_before)
+	var fileInfoBefore unix.Stat_t
+	err = unix.Fstat(int(file.Fd()), &fileInfoBefore)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// buffer should be feed with the content of file (LICENSE)
 	// and file should be deallocated
-	output_buffer := new(bytes.Buffer)
-	CopyWhileDeallocate(file, output_buffer)
+	outputBuffer := new(bytes.Buffer)
+	CopyWhileDeallocate(file, outputBuffer)
 
 	// check if buffer has been feed with content of file (LICENSE)
-	if !bytes.Equal(test_content, output_buffer.Bytes()) {
+	if !bytes.Equal(testContent, outputBuffer.Bytes()) {
 		t.Errorf("content hasn't been copied correctly, see '%s'", file.Name())
 	}
 
@@ -110,35 +110,35 @@ func TestCopyWhileDeallocate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var file_new_content []byte
-	file_new_content, err = ioutil.ReadAll(file)
+	var fileNewContent []byte
+	fileNewContent, err = ioutil.ReadAll(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Count(file_new_content, []byte{0}) != len(file_new_content) {
+	if bytes.Count(fileNewContent, []byte{0}) != len(fileNewContent) {
 		t.Errorf("file should only contain \\0, see '%s'", file.Name())
 	}
 
 	// get file stats after the CopyWhileDeallocate
-	var file_info_after unix.Stat_t
-	err = unix.Fstat(int(file.Fd()), &file_info_after)
+	var fileInfoAfter unix.Stat_t
+	err = unix.Fstat(int(file.Fd()), &fileInfoAfter)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check if file has been deallocated
-	if file_info_before.Size != file_info_after.Size {
-		t.Errorf("file size, expected: '%v', got '%v', see '%s'", file_info_before.Size, file_info_after.Size, file.Name())
+	if fileInfoBefore.Size != fileInfoAfter.Size {
+		t.Errorf("file size, expected: '%v', got '%v', see '%s'", fileInfoBefore.Size, fileInfoAfter.Size, file.Name())
 	}
-	if file_info_before.Blocks <= file_info_after.Blocks {
-		t.Errorf("file blocks, expected: < '%v', got '%v', see '%s'", file_info_before.Blocks, file_info_after.Blocks, file.Name())
+	if fileInfoBefore.Blocks <= fileInfoAfter.Blocks {
+		t.Errorf("file blocks, expected: < '%v', got '%v', see '%s'", fileInfoBefore.Blocks, fileInfoAfter.Blocks, file.Name())
 	}
 }
 
 func TestCollapseFileStart(t *testing.T) {
 	var err error
 	var file *os.File
-	var fs_block_size int64
+	var fsBlockSize int64
 
 	// check TestCollapse
 	defer func() {
@@ -146,8 +146,8 @@ func TestCollapseFileStart(t *testing.T) {
 			t.Error("Panic: ", r)
 		}
 	}()
-	testcollapse_err := TestCollapse()
-	if testcollapse_err != nil && testcollapse_err != unix.EOPNOTSUPP {
+	testCollapseErr := TestCollapse()
+	if testCollapseErr != nil && testCollapseErr != unix.EOPNOTSUPP {
 		t.Fatal(err)
 	}
 
@@ -157,7 +157,7 @@ func TestCollapseFileStart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fs_block_size = GetFilesystemBlockSize(file)
+	fsBlockSize = FilesystemBlockSize(file)
 
 	err = file.Close()
 	if err != nil {
@@ -184,26 +184,26 @@ func TestCollapseFileStart(t *testing.T) {
 		}
 	}
 
-	var byte_actualy_deallocated int64
+	var byteActualyDeallocated int64
 
-	test_cases := []struct {
+	testCases := []struct {
 		name                string
-		file_size           int64
-		bytes_to_deallocate int64
-		expected_v          int64
-		expected_e          error
+		fileSize           int64
+		bytesToDeallocate int64
+		expectedV          int64
+		expectedE          error
 	}{
-		{"1fsb|-1", fs_block_size, -1, 0, error_zero},
-		{"1fsb|1", fs_block_size, 1, 0, error_less_than_one_fsb},
-		{"2fsb|1fsb", 2 * fs_block_size, fs_block_size, fs_block_size, testcollapse_err},
-		{"2fsb|1.5fsb", 2 * fs_block_size, fs_block_size + fs_block_size/2, fs_block_size, testcollapse_err},
+		{"1fsb|-1", fsBlockSize, -1, 0, errorZero},
+		{"1fsb|1", fsBlockSize, 1, 0, errorLessThanOneFsb},
+		{"2fsb|1fsb", 2 * fsBlockSize, fsBlockSize, fsBlockSize, testCollapseErr},
+		{"2fsb|1.5fsb", 2 * fsBlockSize, fsBlockSize + fsBlockSize/2, fsBlockSize, testCollapseErr},
 	}
 
 	// check CollapseFileStart
-	for _, tc := range test_cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			createTestFile(tc.file_size)
+			createTestFile(tc.fileSize)
 			defer os.Remove(file.Name())
 			defer file.Close()
 
@@ -213,16 +213,16 @@ func TestCollapseFileStart(t *testing.T) {
 				}
 			}()
 
-			byte_actualy_deallocated, err = CollapseFileStart(file, tc.bytes_to_deallocate)
+			byteActualyDeallocated, err = CollapseFileStart(file, tc.bytesToDeallocate)
 
-			if err != tc.expected_e {
-				t.Fatalf("expected error %v, got err: %v", tc.expected_e, err)
+			if err != tc.expectedE {
+				t.Fatalf("expected error %v, got err: %v", tc.expectedE, err)
 			}
 
-			if byte_actualy_deallocated != tc.expected_v {
+			if byteActualyDeallocated != tc.expectedV {
 				t.Errorf("expected: %d, got: %d",
-					tc.expected_v,
-					byte_actualy_deallocated)
+					tc.expectedV,
+					byteActualyDeallocated)
 			}
 		})
 	}

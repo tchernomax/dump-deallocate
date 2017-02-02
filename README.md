@@ -51,6 +51,6 @@ Options:
 
 	go get "golang.org/x/sys/unix"
 	go test
-	go build -o dump-deallocate main.go flag_handling.go dump-deallocate.go
+	go build -o dump-deallocate *.go
 
 You may have to define GOPATH.

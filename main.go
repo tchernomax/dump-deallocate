@@ -29,17 +29,17 @@ import (
 )
 
 func main() { os.Exit(mainWithExitCode()) }
-func mainWithExitCode() (exit_code int) {
+func mainWithExitCode() (exitCode int) {
 	var err error
-	var print_if_panic string
+	var printIfPanic string
 	var file *os.File
-	exit_code = 0
+	exitCode = 0
 	defer func() {
 		if r := recover(); r != nil {
-			if len(print_if_panic) != 0 {
-				log.Print(print_if_panic)
+			if len(printIfPanic) != 0 {
+				log.Print(printIfPanic)
 			}
-			exit_code = 2
+			exitCode = 2
 		}
 	}()
 
@@ -53,7 +53,7 @@ func mainWithExitCode() (exit_code int) {
 		return 1
 	}
 
-	if collapse_test { // --collapse-test
+	if collapseTest { // --collapse-test
 		err = TestCollapse()
 		if err != nil {
 			fmt.Println("Collapse test : FAIL")
@@ -73,16 +73,16 @@ func mainWithExitCode() (exit_code int) {
 	defer file.Close()
 
 	// main function
-	print_if_panic = fmt.Sprint(flag.Arg(0), " may have been modified")
-	file_total_byte_deallocated, _ := CopyWhileDeallocate(file, os.Stdout)
+	printIfPanic = fmt.Sprint(flag.Arg(0), " may have been modified")
+	fileTotalByteDeallocated, _ := CopyWhileDeallocate(file, os.Stdout)
 
 	if collapse { // --collapse
 
-		print_if_panic = fmt.Sprint(flag.Arg(0), " dumped but collapse fail")
+		printIfPanic = fmt.Sprint(flag.Arg(0), " dumped but collapse fail")
 
 		// we can't collapse the whole file, so we make sure to keep at
 		// least one byte
-		_, err = CollapseFileStart(file, file_total_byte_deallocated-1)
+		_, err = CollapseFileStart(file, fileTotalByteDeallocated-1)
 		if err != unix.EOPNOTSUPP {
 			log.Print(flag.Arg(0), " dumped but collapse fail")
 			log.Printf("main, CollapseFileStart err='%v'", err)

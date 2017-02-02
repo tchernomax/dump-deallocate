@@ -30,54 +30,54 @@ import (
 )
 
 // boolean corresponding to flags
-var collapse, collapse_test, truncate, remove bool
-var collapse_default, collapse_test_default, truncate_default, remove_default bool = false, false, false, false
+var collapse, collapseTest, truncate, remove bool
+var collapseDefault, collapseTestDefault, truncateDefault, removeDefault bool = false, false, false, false
 
-// size_type is used for --buffer-size
-type size_type int64
+// sizeType is used for --buffer-size
+type sizeType int64
 
-var buffer_size size_type = 32 * 1024 /* 32KiB */
+var bufferSize sizeType = 32 * 1024 /* 32KiB */
 
 // used by the "flag" package to handle --buffer-size parsing
-func (size_obj *size_type) String() string {
-	return fmt.Sprintf("%d", int64(*size_obj))
+func (sizeObj *sizeType) String() string {
+	return fmt.Sprintf("%d", int64(*sizeObj))
 }
 
 /**
  * This function is used by the "flag" package to handle --buffer-size parsing.
  * It transforme …KiB, MiB, KB, etc. in int64.
  *
- * Can return: nil, strconv errors, error_negative_or_zero or error_int64_overflow
+ * Can return: nil, strconv errors, errorNegativeOrZero or errorInt64Overflow
  */
-func (size_obj *size_type) Set(size_str string) (err error) {
-	var size_int int64
+func (sizeObj *sizeType) Set(sizeStr string) (err error) {
+	var sizeInt int64
 
-	if !strings.HasSuffix(size_str, "B") {
-		// if the number in size_str is to big to fit in int64
+	if !strings.HasSuffix(sizeStr, "B") {
+		// if the number in sizeStr is to big to fit in int64
 		// ParseInt raise an error
-		size_int, err = strconv.ParseInt(size_str, 10, 64)
+		sizeInt, err = strconv.ParseInt(sizeStr, 10, 64)
 		if err != nil {
 			// I return err…Err instead of err
 			// because it make test easier
 			return err.(*strconv.NumError).Err
 		}
-		if size_int <= 0 {
-			return error_negative_or_zero
+		if sizeInt <= 0 {
+			return errorNegativeOrZero
 		}
-		// assign size_int to size_obj (buffer_size value)
-		*size_obj = size_type(size_int)
+		// assign sizeInt to sizeObj (bufferSize value)
+		*sizeObj = sizeType(sizeInt)
 		return nil
 	}
 
-	size_str_modified := size_str
+	sizeStrModified := sizeStr
 	// remove "B" suffix
-	size_str_modified = size_str_modified[:len(size_str_modified)-1]
+	sizeStrModified = sizeStrModified[:len(sizeStrModified)-1]
 
-	base_1024 := false /* base 1000 */
-	if strings.HasSuffix(size_str_modified, "i") {
-		base_1024 = true
+	base1024 := false /* base 1000 */
+	if strings.HasSuffix(sizeStrModified, "i") {
+		base1024 = true
 		// remove "i" suffix
-		size_str_modified = size_str_modified[:len(size_str_modified)-1]
+		sizeStrModified = sizeStrModified[:len(sizeStrModified)-1]
 	}
 
 	// K → power = 1
@@ -85,30 +85,30 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 	// G → power = 3
 	// …
 	power := 0
-	size_suffix_power := [6]string{"K", "M", "G", "T", "P", "E"}
-	for power_index, power_suffix := range size_suffix_power {
-		if strings.HasSuffix(size_str_modified, power_suffix) {
-			power = power_index + 1
+	sizeSuffixPower := [6]string{"K", "M", "G", "T", "P", "E"}
+	for powerIndex, powerSuffix := range sizeSuffixPower {
+		if strings.HasSuffix(sizeStrModified, powerSuffix) {
+			power = powerIndex + 1
 			// remove the suffix
-			size_str_modified = size_str_modified[:len(size_str_modified)-1]
+			sizeStrModified = sizeStrModified[:len(sizeStrModified)-1]
 			break
 		}
 	}
 
-	// if the number in size_str is to big to fit in int64
+	// if the number in sizeStr is to big to fit in int64
 	// ParseInt raise an error
-	size_int, err = strconv.ParseInt(size_str_modified, 10, 64)
+	sizeInt, err = strconv.ParseInt(sizeStrModified, 10, 64)
 	if err != nil {
 		// I return err…Err instead of err
 		// because it make test easier
 		return err.(*strconv.NumError).Err
 	}
-	if size_int <= 0 {
-		return error_negative_or_zero
+	if sizeInt <= 0 {
+		return errorNegativeOrZero
 	}
 
 	multiplicator := int64(1)
-	if base_1024 {
+	if base1024 {
 		// 1*(1024^power)
 		multiplicator = (1 << (uint(power) * 10))
 	} else /* base 1000 */ {
@@ -118,45 +118,45 @@ func (size_obj *size_type) Set(size_str string) (err error) {
 		}
 	}
 
-	// size_int = size_int * multiplicator
+	// sizeInt = sizeInt * multiplicator
 	// and check if we do integer overflow
-	size_int_before_multiply := size_int
-	size_int = size_int_before_multiply * multiplicator
-	if size_int/multiplicator != size_int_before_multiply {
-		return error_int64_overflow
+	sizeIntBeforeMultiply := sizeInt
+	sizeInt = sizeIntBeforeMultiply * multiplicator
+	if sizeInt/multiplicator != sizeIntBeforeMultiply {
+		return errorInt64Overflow
 	}
 
-	// assign size_int to size_obj (buffer_size value)
-	*size_obj = size_type(size_int)
+	// assign sizeInt to sizeObj (bufferSize value)
+	*sizeObj = sizeType(sizeInt)
 	return nil
 }
 
-var error_negative_or_zero = errors.New("negative or zero value")
-var error_int64_overflow = errors.New("value too big to fit in int64")
+var errorNegativeOrZero = errors.New("negative or zero value")
+var errorInt64Overflow = errors.New("value too big to fit in int64")
 
 func init() {
-	// buffer_size
-	flag.Var(&buffer_size, "buffer_size", "")
-	flag.Var(&buffer_size, "b", "")
+	// bufferSize
+	flag.Var(&bufferSize, "bufferSize", "")
+	flag.Var(&bufferSize, "b", "")
 
 	// collapse
-	flag.BoolVar(&collapse, "collapse", collapse_default, "")
-	flag.BoolVar(&collapse, "c", collapse_default, "")
+	flag.BoolVar(&collapse, "collapse", collapseDefault, "")
+	flag.BoolVar(&collapse, "c", collapseDefault, "")
 
-	// collapse_test
-	collapse_test_default := false
-	flag.BoolVar(&collapse_test, "collapse-test", collapse_test_default, "")
-	flag.BoolVar(&collapse_test, "C", collapse_test_default, "")
+	// collapseTest
+	collapseTestDefault := false
+	flag.BoolVar(&collapseTest, "collapse-test", collapseTestDefault, "")
+	flag.BoolVar(&collapseTest, "C", collapseTestDefault, "")
 
 	// truncate
-	truncate_default := false
-	flag.BoolVar(&truncate, "truncate", truncate_default, "")
-	flag.BoolVar(&truncate, "t", truncate_default, "")
+	truncateDefault := false
+	flag.BoolVar(&truncate, "truncate", truncateDefault, "")
+	flag.BoolVar(&truncate, "t", truncateDefault, "")
 
 	// remove
-	remove_default := false
-	flag.BoolVar(&remove, "remove", remove_default, "")
-	flag.BoolVar(&remove, "r", remove_default, "")
+	removeDefault := false
+	flag.BoolVar(&remove, "remove", removeDefault, "")
+	flag.BoolVar(&remove, "r", removeDefault, "")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
@@ -205,31 +205,31 @@ func init() {
 				" -r, --remove\n"+
 				"        Remove FILE at the end of the whole dump\n"+
 				"        It is not recommended since another process might be using FILE.\n",
-			os.Args[0], int64(buffer_size)/1024)
+			os.Args[0], int64(bufferSize)/1024)
 	}
 }
 
 /**
  * Verify some conditions on flags after the parsing.
- * Can return: nil, error_missing_file, error_have_file or error_mutually_exclusive
+ * Can return: nil, errorMissingFile, errorHaveFile or errorMutuallyExclusive
  */
 func PostParsingCheckFlags() error {
 
-	if flag.NArg() != 1 && !collapse_test {
-		return error_missing_file
+	if flag.NArg() != 1 && !collapseTest {
+		return errorMissingFile
 	}
 
-	if flag.NArg() != 0 && collapse_test {
-		return error_have_file
+	if flag.NArg() != 0 && collapseTest {
+		return errorHaveFile
 	}
 
-	if BoolToInt(collapse)+BoolToInt(collapse_test)+BoolToInt(truncate)+BoolToInt(remove) > 1 {
-		return error_mutually_exclusive
+	if BoolToInt(collapse)+BoolToInt(collapseTest)+BoolToInt(truncate)+BoolToInt(remove) > 1 {
+		return errorMutuallyExclusive
 	}
 
 	return nil
 }
 
-var error_missing_file = errors.New("missing file parameter")
-var error_have_file = errors.New("-C doesn't accept file parameter")
-var error_mutually_exclusive = errors.New("-c, -C, -t and -r are mutually exclusive")
+var errorMissingFile = errors.New("missing file parameter")
+var errorHaveFile = errors.New("-C doesn't accept file parameter")
+var errorMutuallyExclusive = errors.New("-c, -C, -t and -r are mutually exclusive")
