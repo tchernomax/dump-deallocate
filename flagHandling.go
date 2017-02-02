@@ -193,7 +193,7 @@ func init() {
 				" -C, --collapse-test\n"+
 				"        Test the collapse functionnality.\n"+
 				"        Create a file named dump-deallocate-collapse-test-<random str>\n"+
-				"        in the working directory and try to collapse it\n"+
+				"        in the working directory and try to collapse it.\n"+
 				"        Remove file after the test.\n\n"+
 
 				" -t, --truncate\n"+
