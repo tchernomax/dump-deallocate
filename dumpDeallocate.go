@@ -93,17 +93,14 @@ func CopyWhileDeallocate(file *os.File, output io.Writer) (fileTotalByteDealloca
 
 			// deallocate the read bytes from file
 			err = unix.Fallocate(int(file.Fd()),
-				0x02 /*FALLOC_FL_PUNCH_HOLE*/ |0x01, /*FALLOC_FL_KEEP_SIZE*/
+				unix.FALLOC_FL_PUNCH_HOLE | unix.FALLOC_FL_KEEP_SIZE,
 				fileTotalByteDeallocated,
 				int64(nbByteRead))
 			if err != nil {
 				log.Panicf("CopyWhileDeallocate, unix.Fallocate punch-hole err='%v'", err)
 			}
 
-			/* notes on Fallocate:
-			*  FALLOC_FL_… : https://github.com/golang/go/issues/10599
-			*
-			*  man 2 fallocate:
+			/* man 2 fallocate:
 			*  The FALLOC_FL_PUNCH_HOLE flag must be ORed with FALLOC_FL_KEEP_SIZE in mode
 			*
 			*  I can't use FALLOC_FL_COLLAPSE_RANGE (I tried) because
