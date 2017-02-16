@@ -182,7 +182,7 @@ func CollapseFileStart(file *os.File, bytesToDeallocate int64) (byteActualyDeall
 
 	// collapse (erase) the greatest number of filesystem blocks already dumped/read
 	err = unix.Fallocate(int(file.Fd()),
-		0x08, /*FALLOC_FL_COLLAPSE_RANGE*/
+		unix.FALLOC_FL_COLLAPSE_RANGE,
 		0,
 		collapseLen)
 
@@ -227,7 +227,7 @@ func TestCollapse() (err error) {
 
 	// try to collapse it's first filesystem block
 	err = unix.Fallocate(int(file.Fd()),
-		0x08, /*FALLOC_FL_COLLAPSE_RANGE*/
+		unix.FALLOC_FL_COLLAPSE_RANGE,
 		0,
 		fsBlockSize)
 
