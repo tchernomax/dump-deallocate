@@ -204,7 +204,9 @@ func init() {
 
 				" -r, --remove\n"+
 				"        Remove FILE at the end of the whole dump\n"+
-				"        It is not recommended since another process might be using FILE.\n",
+				"        It is not recommended since another process might be using FILE.\n\n"+
+
+				"Example: dump-deallocate big.log | gzip > small.gz\n",
 			os.Args[0], int64(bufferSize)/1024)
 	}
 }

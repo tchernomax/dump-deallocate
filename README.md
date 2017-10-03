@@ -47,6 +47,12 @@ Options:
 : Remove FILE at the end of the whole dump.
 	It is not recommended since another process might be using FILE.
 
+## Example
+
+```
+dump-deallocate big.log | gzip > small.gz
+```
+
 ## Build
 
 	go get "golang.org/x/sys/unix"
